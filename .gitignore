@@ -1,0 +1,24 @@
+# dependencies & builds
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets — commit only the .env.example files
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+.api.log
+.web.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
