@@ -51,7 +51,7 @@ export default function GameCenterPage() {
         )}
       </section>
       <p className="-mx-4 flex items-center gap-1.5 bg-sun px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-900">
-        <Sparkles className="h-3.5 w-3.5" aria-hidden /> Play games · earn coins · cash out to telebirr
+        <Sparkles className="h-3.5 w-3.5" aria-hidden /> Play games · earn coins · convert to ETB e-money
       </p>
 
       <details className="card group mt-4 p-4">
