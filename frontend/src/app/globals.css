@@ -20,6 +20,7 @@
   --color-leaf-600: #74a92f;
   --color-leaf-700: #5c8a22; /* buttons/chips: readable white text (telebirr green is too light) */
   --color-leaf-800: #4a701b;
+  --color-leaf-900: #22430d;
   --color-sun: #ffc20e;
   --color-coin: #f59e0b;
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
@@ -38,6 +39,27 @@ body {
 
 @utility card {
   @apply rounded-xl bg-white shadow-sm ring-1 ring-black/5;
+}
+
+/* admin: soft green/blue glow at the top + faint dot grid (decoration only) */
+@utility admin-backdrop {
+  background-color: #f3f5f0;
+  background-image:
+    radial-gradient(60rem 28rem at 10% -10%, rgb(141 198 63 / 0.20), transparent 70%),
+    radial-gradient(50rem 26rem at 95% -5%, rgb(35 133 208 / 0.14), transparent 70%),
+    radial-gradient(rgb(15 23 42 / 0.05) 1px, transparent 1px);
+  background-size: auto, auto, 22px 22px;
+  background-attachment: fixed;
+}
+
+/* admin: telebirr green sidebar (#8DC63F); white text gets a soft shadow to stay readable on the light green */
+@utility admin-sidebar {
+  background-image: linear-gradient(180deg, #8dc63f 0%, #8dc63f 60%, #82bb37 100%);
+  text-shadow: 0 1px 2px rgb(22 48 10 / 0.35);
+}
+.admin-sidebar .bg-white,
+.admin-sidebar .bg-sun {
+  text-shadow: none;
 }
 
 /* the soft wave lines on telebirr's green header */

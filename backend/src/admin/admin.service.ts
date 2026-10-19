@@ -58,13 +58,23 @@ export class AdminService {
         by: ['planType'],
         where: paid,
         _count: true,
-        _sum: { amountCents: true },
+        _sum: {
+          amountCents: true,
+          netCents: true,
+          partnerShareCents: true,
+          operatorShareCents: true,
+        },
       }),
       this.prisma.order.groupBy({
         by: ['gameId'],
         where: paid,
         _count: true,
-        _sum: { amountCents: true, netCents: true },
+        _sum: {
+          amountCents: true,
+          netCents: true,
+          partnerShareCents: true,
+          operatorShareCents: true,
+        },
         orderBy: { _sum: { amountCents: 'desc' } },
       }),
       this.prisma.user.count({ where: { role: 'USER' } }),
@@ -92,9 +102,9 @@ export class AdminService {
     ]);
 
     const games = await this.prisma.game.findMany({
-      select: { id: true, title: true },
+      select: { id: true, title: true, slug: true },
     });
-    const title = new Map(games.map((g) => [g.id, g.title]));
+    const gameById = new Map(games.map((g) => [g.id, g]));
     const s = revenue._sum;
     return {
       range: { from, to },
@@ -111,13 +121,19 @@ export class AdminService {
         planType: p.planType,
         orders: p._count,
         grossCents: p._sum.amountCents ?? 0,
+        netCents: p._sum.netCents ?? 0,
+        partnerShareCents: p._sum.partnerShareCents ?? 0,
+        operatorShareCents: p._sum.operatorShareCents ?? 0,
       })),
       byGame: byGame.map((g) => ({
         gameId: g.gameId,
-        title: title.get(g.gameId) ?? g.gameId,
+        slug: gameById.get(g.gameId)?.slug ?? '',
+        title: gameById.get(g.gameId)?.title ?? g.gameId,
         orders: g._count,
         grossCents: g._sum.amountCents ?? 0,
         netCents: g._sum.netCents ?? 0,
+        partnerShareCents: g._sum.partnerShareCents ?? 0,
+        operatorShareCents: g._sum.operatorShareCents ?? 0,
       })),
       users,
       activeSubscriptions: activeSubs,

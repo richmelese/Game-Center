@@ -1,34 +1,24 @@
 'use client';
 
-import { Download, LogOut, RefreshCw } from 'lucide-react';
-import Image from 'next/image';
+import {
+  ArrowRightLeft,
+  Gamepad2,
+  LayoutDashboard,
+  LifeBuoy,
+  Receipt,
+  SlidersHorizontal,
+  type LucideIcon,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ErrorNote, Spinner } from '@/components/AppShell';
-import { api, API_URL, ApiError, tokens } from '@/lib/api';
+import { API_URL, ApiError, tokens } from '@/lib/api';
 import { dateTime, displayPhone, etb, PLAN_LABEL, timeRateText } from '@/lib/format';
 import type { CoinMode, CoinSettings, PlanType, Redemption } from '@/lib/types';
+import { adminApi, useLoad, type TabProps } from './admin-api';
+import { AdminShell, planPriceLabel, type NavItem, type SidebarPricing } from './admin-shell';
+import { RevenueTab } from './revenue-tab';
 
-interface Summary {
-  revenue: {
-    paidOrders: number;
-    grossCents: number;
-    vatCents: number;
-    otherTaxCents: number;
-    netCents: number;
-    partnerShareCents: number;
-    operatorShareCents: number;
-  };
-  byPlan: { planType: PlanType; orders: number; grossCents: number }[];
-  byGame: { gameId: string; title: string; orders: number; grossCents: number; netCents: number }[];
-  users: number;
-  activeSubscriptions: number;
-  plays: { full: number; demo: number };
-  coinsIssued: number;
-  redemptions: { status: string; count: number; coins: number; amountCents: number }[];
-  openTickets: number;
-}
-interface Daily { day: string; orders: number; grossCents: number; netCents: number; partnerShareCents: number; operatorShareCents: number }
 interface AdminPlan { id: string; type: PlanType; priceCents: number; isActive: boolean }
 interface AdminGame {
   id: string; title: string; category: string; isActive: boolean; plans: AdminPlan[];
@@ -44,15 +34,56 @@ interface OrdersPage {
   rows: { merchOrderId: string; status: string; planType: PlanType; game: string; customer: string | null; amountCents: number; providerTxnId: string | null; createdAt: string }[];
 }
 
-const TABS = ['Revenue', 'Games & pricing', 'Coin settings', 'Coin conversions', 'Orders', 'Support'] as const;
+const TABS = ['Overview', 'Games & pricing', 'Coin settings', 'Coin conversions', 'Orders', 'Support'] as const;
 type Tab = (typeof TABS)[number];
+const TAB_ICON: Record<Tab, LucideIcon> = {
+  Overview: LayoutDashboard,
+  'Games & pricing': Gamepad2,
+  'Coin settings': SlidersHorizontal,
+  'Coin conversions': ArrowRightLeft,
+  Orders: Receipt,
+  Support: LifeBuoy,
+};
+const PLAN_ORDER: PlanType[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'PAY_PER_USE'];
 
-const isoDay = (d: Date) => new Date(d.getTime() + 3 * 3600_000).toISOString().slice(0, 10);
-const adminApi = <T,>(path: string, opts: Parameters<typeof api>[1] = {}) => api<T>(path, { ...opts, admin: true });
+/** Data for the sidebar badges and pricing panel; refreshed whenever the section changes. */
+function useSidebarData(onAuthError: (e: unknown) => void, tab: Tab) {
+  const [data, setData] = useState<{
+    games: AdminGame[];
+    pendingConversions: number;
+    openTickets: number;
+    coins: CoinSettings | null;
+  } | null>(null);
+  useEffect(() => {
+    let stop = false;
+    Promise.all([
+      adminApi<AdminGame[]>('/admin/games'),
+      adminApi<AdminRedemption[]>('/admin/redemptions?status=PENDING'),
+      adminApi<AdminTicket[]>('/admin/tickets'),
+      adminApi<CoinSettings>('/admin/settings/coins').catch(() => null),
+    ])
+      .then(([games, pending, tickets, coins]) => {
+        if (!stop) {
+          setData({
+            games,
+            pendingConversions: pending.length,
+            openTickets: tickets.filter((t) => t.status !== 'RESOLVED').length,
+            coins,
+          });
+        }
+      })
+      .catch(onAuthError);
+    return () => {
+      stop = true;
+    };
+  }, [onAuthError, tab]);
+  return data;
+}
 
 export default function AdminPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('Revenue');
+  const [tab, setTab] = useState<Tab>('Overview');
+  const [search, setSearch] = useState('');
   const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
@@ -69,227 +100,75 @@ export default function AdminPage() {
     },
     [router],
   );
+  const side = useSidebarData(onAuthError, tab);
+  const [profile, setProfile] = useState<{ name: string | null; email: string | null } | null>(null);
+  useEffect(() => {
+    adminApi<{ name: string | null; email: string | null }>('/auth/me').then(setProfile).catch(onAuthError);
+  }, [onAuthError]);
 
   if (!authed) return <Spinner />;
 
+  const listed = side?.games.filter((g) => g.isActive) ?? [];
+  const items: NavItem<Tab>[] = TABS.map((t) => ({
+    id: t,
+    label: t,
+    icon: TAB_ICON[t],
+    meta: t === 'Games & pricing' && side ? `${listed.length}/${side.games.length}` : undefined,
+    badge:
+      t === 'Coin conversions' ? side?.pendingConversions : t === 'Support' ? side?.openTickets : undefined,
+  }));
+  const pricing: SidebarPricing | null = side
+    ? {
+        plans: PLAN_ORDER.map((type) => ({
+          type,
+          label: planPriceLabel(
+            listed.flatMap((g) => g.plans.filter((p) => p.type === type && p.isActive).map((p) => p.priceCents)),
+          ),
+        })),
+        coinsPerEtb: side.coins?.coinsPerEtb,
+        timeRate: side.coins
+          ? { coins: side.coins.coinsPerInterval, minutes: side.coins.intervalMinutes }
+          : undefined,
+      }
+    : null;
+  const alerts = (side?.pendingConversions ?? 0) + (side?.openTickets ?? 0);
+
   return (
-    <div className="min-h-dvh">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-          <Image src="/lemat-mark.png" alt="LEMAT" width={140} height={93} className="h-9 w-auto" />
-          <div>
-            <p className="text-sm font-bold text-brand-900">telebirr Game Center · Admin</p>
-            <p className="text-xs text-slate-500">LEMAT TECHNOLOGY PLC</p>
-          </div>
-          <button
-            className="btn-ghost ml-auto px-3 py-2 text-xs"
-            onClick={() => {
-              tokens.setAdmin(null);
-              router.replace('/admin/login');
-            }}
-          >
-            <LogOut className="h-4 w-4" aria-hidden /> Sign out
-          </button>
-        </div>
-        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4" role="tablist">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={`shrink-0 border-b-2 px-3 py-2.5 text-sm font-semibold ${
-                tab === t ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </nav>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        {tab === 'Revenue' && <RevenueTab onAuthError={onAuthError} />}
-        {tab === 'Games & pricing' && <GamesTab onAuthError={onAuthError} />}
-        {tab === 'Coin settings' && <CoinSettingsTab onAuthError={onAuthError} />}
-        {tab === 'Coin conversions' && <ConversionsTab onAuthError={onAuthError} />}
-        {tab === 'Orders' && <OrdersTab onAuthError={onAuthError} />}
-        {tab === 'Support' && <SupportTab onAuthError={onAuthError} />}
-      </main>
-    </div>
+    <AdminShell
+      items={items}
+      active={tab}
+      onSelect={setTab}
+      pricing={pricing}
+      onEditPrices={() => setTab('Games & pricing')}
+      search={search}
+      onSearch={(q) => {
+        setSearch(q);
+        if (q.trim()) setTab('Games & pricing');
+      }}
+      alerts={alerts}
+      onAlerts={() => setTab(side?.pendingConversions ? 'Coin conversions' : 'Support')}
+      profile={profile}
+      onSignOut={() => {
+        tokens.setAdmin(null);
+        router.replace('/admin/login');
+      }}
+    >
+      {tab === 'Overview' && <RevenueTab onAuthError={onAuthError} onNavigate={setTab} />}
+      {tab === 'Games & pricing' && <GamesTab onAuthError={onAuthError} search={search} />}
+      {tab === 'Coin settings' && <CoinSettingsTab onAuthError={onAuthError} />}
+      {tab === 'Coin conversions' && <ConversionsTab onAuthError={onAuthError} />}
+      {tab === 'Orders' && <OrdersTab onAuthError={onAuthError} />}
+      {tab === 'Support' && <SupportTab onAuthError={onAuthError} />}
+    </AdminShell>
   );
 }
 
-type TabProps = { onAuthError: (e: unknown) => void };
-
-function useLoad<T>(path: string, onAuthError: (e: unknown) => void) {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState('');
-  const load = useCallback(() => {
-    setError('');
-    return adminApi<T>(path)
-      .then(setData)
-      .catch((e) => {
-        onAuthError(e);
-        setError((e as Error).message);
-      });
-  }, [path, onAuthError]);
-  useEffect(() => {
-    load();
-  }, [load]);
-  return { data, error, load, setError };
-}
-
-function Stat({ label, value, hint, tone = 'slate' }: { label: string; value: string; hint?: string; tone?: 'slate' | 'brand' | 'leaf' }) {
-  const color = tone === 'brand' ? 'text-brand-700' : tone === 'leaf' ? 'text-leaf-600' : 'text-slate-900';
-  return (
-    <div className="card p-4">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className={`mt-1 text-xl font-bold ${color}`}>{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
-    </div>
-  );
-}
-
-function RevenueTab({ onAuthError }: TabProps) {
-  const today = new Date();
-  const [from, setFrom] = useState(isoDay(new Date(today.getTime() - 29 * 86400_000)));
-  const [to, setTo] = useState(isoDay(today));
-  const qs = `from=${from}&to=${to}`;
-  const summary = useLoad<Summary>(`/admin/summary?${qs}`, onAuthError);
-  const daily = useLoad<Daily[]>(`/admin/revenue/daily?${qs}`, onAuthError);
-  const [downloading, setDownloading] = useState(false);
-
-  async function downloadCsv() {
-    setDownloading(true);
-    try {
-      const blob = await adminApi<Blob>(`/admin/revenue.csv?${qs}`, { raw: true });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `telegame-revenue-${from}-to-${to}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      onAuthError(e);
-      summary.setError((e as Error).message);
-    } finally {
-      setDownloading(false);
-    }
-  }
-
-  const s = summary.data;
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="text-sm font-medium text-slate-700">
-          From
-          <input type="date" className="input mt-1 py-2" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          To
-          <input type="date" className="input mt-1 py-2" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
-        </label>
-        <button className="btn-ghost py-2.5" onClick={() => { summary.load(); daily.load(); }}>
-          <RefreshCw className="h-4 w-4" aria-hidden /> Refresh
-        </button>
-        <button className="btn-primary py-2.5" onClick={downloadCsv} disabled={downloading}>
-          <Download className="h-4 w-4" aria-hidden /> {downloading ? 'Preparing…' : 'Reconciliation CSV'}
-        </button>
-      </div>
-
-      {summary.error && <ErrorNote message={summary.error} />}
-      {!s && !summary.error && <Spinner />}
-      {s && (
-        <>
-          <section>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Revenue sharing (section 3.2)</h2>
-            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-              <Stat label="Gross collected" value={etb(s.revenue.grossCents)} hint={`${s.revenue.paidOrders} paid orders`} />
-              <Stat label="VAT" value={etb(s.revenue.vatCents)} />
-              <Stat label="Other statutory taxes" value={etb(s.revenue.otherTaxCents)} />
-              <Stat label="Net revenue" value={etb(s.revenue.netCents)} tone="brand" />
-              <Stat label="LEMAT TECHNOLOGY PLC (70%)" value={etb(s.revenue.partnerShareCents)} tone="leaf" />
-              <Stat label="Ethio Telecom (30%)" value={etb(s.revenue.operatorShareCents)} tone="brand" />
-            </div>
-          </section>
-
-          <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <Stat label="Customers" value={s.users.toLocaleString()} />
-            <Stat label="Active subscriptions" value={s.activeSubscriptions.toLocaleString()} />
-            <Stat label="Paid plays / demo plays" value={`${s.plays.full} / ${s.plays.demo}`} />
-            <Stat label="Coins issued" value={s.coinsIssued.toLocaleString()} />
-            <Stat label="Open support tickets" value={String(s.openTickets)} />
-          </section>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            <section className="card overflow-x-auto p-4">
-              <h3 className="text-sm font-bold text-slate-900">By plan</h3>
-              <table className="mt-3 w-full text-sm">
-                <thead className="text-left text-xs text-slate-500"><tr><th className="py-1">Plan</th><th>Orders</th><th className="text-right">Gross</th></tr></thead>
-                <tbody>
-                  {s.byPlan.length === 0 && <tr><td colSpan={3} className="py-2 text-slate-400">No sales in this period</td></tr>}
-                  {s.byPlan.map((p) => (
-                    <tr key={p.planType} className="border-t border-slate-100">
-                      <td className="py-2">{PLAN_LABEL[p.planType]}</td><td>{p.orders}</td><td className="text-right">{etb(p.grossCents)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-            <section className="card overflow-x-auto p-4">
-              <h3 className="text-sm font-bold text-slate-900">By game</h3>
-              <table className="mt-3 w-full text-sm">
-                <thead className="text-left text-xs text-slate-500"><tr><th className="py-1">Game</th><th>Orders</th><th className="text-right">Gross</th><th className="text-right">Net</th></tr></thead>
-                <tbody>
-                  {s.byGame.length === 0 && <tr><td colSpan={4} className="py-2 text-slate-400">No sales in this period</td></tr>}
-                  {s.byGame.map((g) => (
-                    <tr key={g.gameId} className="border-t border-slate-100">
-                      <td className="py-2">{g.title}</td><td>{g.orders}</td><td className="text-right">{etb(g.grossCents)}</td><td className="text-right">{etb(g.netCents)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          </div>
-
-          <section className="card overflow-x-auto p-4">
-            <h3 className="text-sm font-bold text-slate-900">Daily revenue (Addis Ababa time)</h3>
-            <table className="mt-3 w-full min-w-[560px] text-sm">
-              <thead className="text-left text-xs text-slate-500">
-                <tr><th className="py-1">Day</th><th>Orders</th><th className="text-right">Gross</th><th className="text-right">Net</th><th className="text-right">LEMAT 70%</th><th className="text-right">Ethio Telecom 30%</th></tr>
-              </thead>
-              <tbody>
-                {daily.data?.length === 0 && <tr><td colSpan={6} className="py-2 text-slate-400">No sales in this period</td></tr>}
-                {daily.data?.map((d) => (
-                  <tr key={d.day} className="border-t border-slate-100">
-                    <td className="py-2">{d.day}</td><td>{d.orders}</td><td className="text-right">{etb(d.grossCents)}</td><td className="text-right">{etb(d.netCents)}</td>
-                    <td className="text-right">{etb(d.partnerShareCents)}</td><td className="text-right">{etb(d.operatorShareCents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-
-          <section className="card p-4">
-            <h3 className="text-sm font-bold text-slate-900">Coin conversions in this period</h3>
-            <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-              {s.redemptions.map((r) => (
-                <div key={r.status}>
-                  <p className="text-xs text-slate-500">{r.status.toLowerCase()}</p>
-                  <p className="font-bold text-slate-900">{etb(r.amountCents)}</p>
-                  <p className="text-xs text-slate-400">{r.count} requests · {r.coins.toLocaleString()} coins</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        </>
-      )}
-    </div>
-  );
-}
-
-function GamesTab({ onAuthError }: TabProps) {
-  const { data, error, load, setError } = useLoad<AdminGame[]>('/admin/games', onAuthError);
+function GamesTab({ onAuthError, search = '' }: TabProps & { search?: string }) {
+  const { data: allGames, error, load, setError } = useLoad<AdminGame[]>('/admin/games', onAuthError);
+  const q = search.trim().toLowerCase();
+  const data = allGames && q
+    ? allGames.filter((g) => g.title.toLowerCase().includes(q) || g.category.toLowerCase().includes(q))
+    : allGames;
   const [prices, setPrices] = useState<Record<string, string>>({});
 
   async function patch(path: string, body: unknown) {
@@ -306,6 +185,11 @@ function GamesTab({ onAuthError }: TabProps) {
   return (
     <div className="space-y-4">
       {error && <ErrorNote message={error} />}
+      {q && (
+        <p className="text-sm text-slate-500">
+          {data.length === 0 ? `No games match “${search.trim()}”.` : `${data.length} game${data.length === 1 ? '' : 's'} match “${search.trim()}”.`}
+        </p>
+      )}
       {data.map((g) => (
         <section key={g.id} className="card p-4">
           <div className="flex flex-wrap items-center gap-3">
