@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import {
@@ -28,8 +29,9 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { Roles } from '../common/auth.decorators';
+import { CurrentUser, Roles, type AuthUser } from '../common/auth.decorators';
 import { startOfAddisDay } from '../common/time';
+import { CoinSettingsService } from '../settings/coin-settings.service';
 import { AdminService, Range } from './admin.service';
 
 class UpdateGameDto {
@@ -60,6 +62,19 @@ class RejectRedemptionDto {
   @IsString() @Length(3, 300) note!: string;
 }
 
+/** Admin → Coin settings. All fields are required so the whole rule set is saved together. */
+class CoinSettingsDto {
+  /** coins paid for every completed interval of play */
+  @IsInt() @Min(1) @Max(10_000) coinsPerInterval!: number;
+  /** interval length in minutes (1 = per minute) */
+  @IsInt() @Min(1) @Max(1440) intervalMinutes!: number;
+  @IsInt() @Min(1) @Max(1_000_000) maxPerSession!: number;
+  @IsInt() @Min(1) @Max(1_000_000) maxPerDay!: number;
+  /** this many coins = 1 ETB */
+  @IsInt() @Min(1) @Max(1_000_000) coinsPerEtb!: number;
+  @IsInt() @Min(1) @Max(1_000_000) minRedeem!: number;
+}
+
 class UpdateTicketDto {
   @IsOptional() @IsEnum(TicketStatus) status?: TicketStatus;
   @IsOptional() @IsString() @Length(1, 2000) response?: string;
@@ -83,7 +98,23 @@ function parseRange(from?: string, to?: string): Range {
 @Roles(Role.ADMIN)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly coinSettings: CoinSettingsService,
+  ) {}
+
+  @Get('settings/coins')
+  getCoinSettings() {
+    return this.coinSettings.get();
+  }
+
+  @Put('settings/coins')
+  updateCoinSettings(
+    @Body() dto: CoinSettingsDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.coinSettings.update(dto, user.id);
+  }
 
   @Get('summary')
   summary(@Query('from') from?: string, @Query('to') to?: string) {

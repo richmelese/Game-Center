@@ -10,9 +10,9 @@ import { JourneyProgress } from '@/components/JourneySteps';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { coinRuleText, dateTime, etb, PLAN_LABEL, PLAN_PERIOD } from '@/lib/format';
-import type { Game, GameAccess, Plan } from '@/lib/types';
+import type { Game, GameAccess, Plan, TimeCoins } from '@/lib/types';
 
-type Detail = Game & { access: GameAccess | null };
+type Detail = Game & { access: GameAccess | null; timeCoins: TimeCoins };
 
 /** Journey step 2 (select the game) and step 3 (purchase / subscription flow). */
 export default function GamePage() {
@@ -70,7 +70,7 @@ export default function GamePage() {
               <Users className="h-3.5 w-3.5" aria-hidden /> {game.targetAudience}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-sun/25 px-2.5 py-1 text-xs font-medium text-amber-800">
-              <Coins className="h-3.5 w-3.5" aria-hidden /> {coinRuleText(game.coinMode, game.pointsPerCoin)}
+              <Coins className="h-3.5 w-3.5" aria-hidden /> {coinRuleText(game.coinMode, game.pointsPerCoin, game.timeCoins)}
             </span>
           </div>
         </div>
@@ -89,7 +89,7 @@ export default function GamePage() {
           <Link href={`/play/${game.slug}?mode=FULL`} className="btn-leaf mt-3 w-full text-base">
             <Play className="h-5 w-5" aria-hidden /> Launch game
           </Link>
-          <p className="mt-2 text-center text-xs text-slate-500">{coinRuleText(game.coinMode, game.pointsPerCoin)}</p>
+          <p className="mt-2 text-center text-xs text-slate-500">{coinRuleText(game.coinMode, game.pointsPerCoin, game.timeCoins)}</p>
         </div>
       )}
 

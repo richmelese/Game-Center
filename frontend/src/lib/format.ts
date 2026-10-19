@@ -1,10 +1,16 @@
-import type { CoinMode, PlanType } from './types';
+import type { CoinMode, PlanType, TimeCoins } from './types';
+
+/** "2 coins every minute", "5 coins every 2 minutes" — the play-time rate set by admins. */
+export const timeRateText = ({ coins, minutes }: TimeCoins) =>
+  `${coins} coin${coins === 1 ? '' : 's'} every ${minutes === 1 ? 'minute' : `${minutes} minutes`}`;
 
 /** One-line explanation of how a game pays coins. */
-export const coinRuleText = (mode: CoinMode, pointsPerCoin: number) =>
+export const coinRuleText = (mode: CoinMode, pointsPerCoin: number, time?: TimeCoins) =>
   mode === 'SCORE'
     ? `Earn 1 coin for every ${pointsPerCoin.toLocaleString()} points you score.`
-    : 'Earn coins for every minute you play.';
+    : time
+      ? `Earn ${timeRateText(time)} you play.`
+      : 'Earn coins for the time you play.';
 
 export const etb = (cents: number) =>
   `${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`;

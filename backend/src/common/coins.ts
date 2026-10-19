@@ -3,9 +3,12 @@
  *  - coins are earned from verified active play time in purchased (FULL) sessions only
  *  - capped per session and per day so they cannot be farmed
  *  - converted to ETB at a fixed rate
+ * The values are set by admins (CoinSettingsService); .env only provides the first defaults.
  */
 export interface CoinRules {
-  perMinute: number;
+  /** TIME mode: `coinsPerInterval` coins for every completed `intervalMinutes` of play */
+  coinsPerInterval: number;
+  intervalMinutes: number;
   maxPerSession: number;
   maxPerDay: number;
   perEtb: number;
@@ -17,7 +20,10 @@ export function coinsForSession(
   earnedTodayBefore: number,
   rules: CoinRules,
 ): number {
-  const byTime = Math.floor(Math.max(0, activeSeconds) / 60) * rules.perMinute;
+  const intervalSeconds = Math.max(1, rules.intervalMinutes) * 60;
+  const byTime =
+    Math.floor(Math.max(0, activeSeconds) / intervalSeconds) *
+    rules.coinsPerInterval;
   const leftToday = Math.max(0, rules.maxPerDay - earnedTodayBefore);
   return Math.max(0, Math.min(byTime, rules.maxPerSession, leftToday));
 }

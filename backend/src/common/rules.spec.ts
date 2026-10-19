@@ -10,7 +10,8 @@ const revenueRules = {
   partnerShare: 0.7,
 };
 const coinRules = {
-  perMinute: 2,
+  coinsPerInterval: 2,
+  intervalMinutes: 1,
   maxPerSession: 60,
   maxPerDay: 200,
   perEtb: 100,
@@ -56,6 +57,19 @@ describe('coins (journey steps 7-8)', () => {
     expect(coinsForSession(3600, 0, coinRules)).toBe(60);
     expect(coinsForSession(3600, 180, coinRules)).toBe(20);
     expect(coinsForSession(3600, 250, coinRules)).toBe(0);
+  });
+
+  it('uses the admin rate: X coins for every completed Y minutes', () => {
+    const fivePerTwoMin = {
+      ...coinRules,
+      coinsPerInterval: 5,
+      intervalMinutes: 2,
+    };
+    expect(coinsForSession(119, 0, fivePerTwoMin)).toBe(0); // under 2 minutes
+    expect(coinsForSession(120, 0, fivePerTwoMin)).toBe(5);
+    expect(coinsForSession(10 * 60, 0, fivePerTwoMin)).toBe(25);
+    expect(coinsForSession(11 * 60 + 59, 0, fivePerTwoMin)).toBe(25); // partial interval not paid
+    expect(coinsForSession(60 * 60, 0, fivePerTwoMin)).toBe(60); // still capped per session
   });
 
   it('converts coins to ETB rounding down', () => {

@@ -2,6 +2,23 @@ export type PlanType = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'PAY_PER_USE';
 export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED';
 export type PlayMode = 'DEMO' | 'FULL';
 export type CoinMode = 'TIME' | 'SCORE';
+/** Play-time coin rate set by admins: `coins` for every `minutes` of play */
+export interface TimeCoins {
+  coins: number;
+  minutes: number;
+}
+
+/** Admin → Coin settings */
+export interface CoinSettings {
+  coinsPerInterval: number;
+  intervalMinutes: number;
+  maxPerSession: number;
+  maxPerDay: number;
+  coinsPerEtb: number;
+  minRedeem: number;
+  updatedAt?: string;
+  updatedBy?: string | null;
+}
 
 export interface User {
   id: string;
@@ -66,7 +83,8 @@ export interface Wallet {
   rules: {
     coinsPerEtb: number;
     minRedeemCoins: number;
-    coinsPerMinute: number;
+    coinsPerInterval: number;
+    intervalMinutes: number;
     maxCoinsPerSession: number;
     maxCoinsPerDay: number;
     instantPayout: boolean;

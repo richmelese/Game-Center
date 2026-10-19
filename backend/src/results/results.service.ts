@@ -7,10 +7,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { CoinMode, CoinTxType, PlayMode, Prisma } from '@prisma/client';
-import { AppConfig } from '../config/app-config.service';
 import { coinsForScore } from '../common/coins';
 import { startOfAddisDay } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
+import { CoinSettingsService } from '../settings/coin-settings.service';
 import { verifyResultSignature } from './result-signature';
 
 /** Results for a session are accepted while it is open and briefly after it ends. */
@@ -36,7 +36,7 @@ export class ResultsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: AppConfig,
+    private readonly coinSettings: CoinSettingsService,
   ) {}
 
   async report(
@@ -91,6 +91,7 @@ export class ResultsService {
     // demo sessions and time-based sessions are recorded but never paid by score
     const payable =
       session.mode === PlayMode.FULL && session.coinMode === CoinMode.SCORE;
+    const rules = await this.coinSettings.rules();
 
     try {
       const saved = await this.prisma.$transaction(async (tx) => {
@@ -114,7 +115,7 @@ export class ResultsService {
             game.pointsPerCoin,
             current.coinsEarned,
             today._sum.amount ?? 0,
-            this.config.coins,
+            rules,
           );
         }
 

@@ -6,7 +6,8 @@ import {
 } from './result-signature';
 
 const rules = {
-  perMinute: 2,
+  coinsPerInterval: 2,
+  intervalMinutes: 1,
   maxPerSession: 60,
   maxPerDay: 200,
   perEtb: 100,

@@ -17,7 +17,13 @@ interface StartResponse {
   game: { slug: string; title: string; gameUrl: string };
   heartbeatSeconds: number;
   demoSeconds: number | null;
-  coinRules: { coinMode: CoinMode; perMinute: number; pointsPerCoin: number; maxPerSession: number };
+  coinRules: {
+    coinMode: CoinMode;
+    coinsPerInterval: number;
+    intervalMinutes: number;
+    pointsPerCoin: number;
+    maxPerSession: number;
+  };
 }
 
 interface Summary {

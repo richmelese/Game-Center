@@ -270,6 +270,20 @@ model Redemption {
   @@index([status, createdAt])
 }
 
+/// Coin rules editable by admins (single row, id = 1).
+/// Created from the .env values on first use; after that the admin settings are used.
+model CoinSettings {
+  id               Int      @id @default(1)
+  coinsPerInterval Int // TIME mode: coins paid for every completed interval of play...
+  intervalMinutes  Int //  ...of this many minutes (e.g. 5 coins every 2 minutes)
+  maxPerSession    Int
+  maxPerDay        Int
+  coinsPerEtb      Int // conversion rate: this many coins = 1 ETB
+  minRedeem        Int // minimum coins per conversion
+  updatedById      String?
+  updatedAt        DateTime @updatedAt
+}
+
 model SupportTicket {
   id        String       @id @default(cuid())
   userId    String

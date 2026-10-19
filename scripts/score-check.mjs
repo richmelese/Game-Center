@@ -5,6 +5,8 @@ import { execSync } from 'node:child_process';
 
 const API = 'http://localhost:4000/api';
 const SLUG = 'professor-bubble';
+// fresh result ids every run: the API (correctly) never pays the same result id twice
+const RUN = Date.now().toString(36);
 const sql = (q) =>
   execSync(`docker exec telegame-postgres psql -U telegame -d telegame -tAc "${q.replace(/"/g, '\\"')}"`).toString().trim();
 const ok = (cond, msg) => {
@@ -68,52 +70,52 @@ ok(launch.searchParams.get('tg_session') === play.sessionId, `launch URL carries
 const sessionId = play.sessionId;
 
 console.log('Supplier reports results');
-const r1 = (await report(resultSecret, { resultId: 'round-1', sessionId, score: 1550, level: 3, won: true })).data;
+const r1 = (await report(resultSecret, { resultId: `${RUN}-round-1`, sessionId, score: 1550, level: 3, won: true })).data;
 ok(r1.coinsAwarded === 15 && !r1.duplicate, 'score 1550 -> 15 coins');
-const again = (await report(resultSecret, { resultId: 'round-1', sessionId, score: 1550 })).data;
+const again = (await report(resultSecret, { resultId: `${RUN}-round-1`, sessionId, score: 1550 })).data;
 ok(again.duplicate && again.coinsAwarded === 15, 'same resultId again is a duplicate (paid once)');
 const hb = (await call('POST', `/play/${sessionId}/heartbeat`, { token: user })).data;
 ok(hb.coinsSoFar === 15, 'live coin counter shows score coins');
 
 console.log('Attacks are rejected');
-await report(resultSecret, { resultId: 'round-x', sessionId, score: 500 }, {
+await report(resultSecret, { resultId: `${RUN}-round-x`, sessionId, score: 500 }, {
   tamper: (b) => b.replace('500', '9999999'), expect: [401],
 });
 ok(true, 'inflated score with the original signature -> 401');
-await report('f'.repeat(64), { resultId: 'round-y', sessionId, score: 500 }, { expect: [401] });
+await report('f'.repeat(64), { resultId: `${RUN}-round-y`, sessionId, score: 500 }, { expect: [401] });
 ok(true, 'signed with a wrong secret -> 401');
-await report(resultSecret, { resultId: 'round-z', sessionId, score: 500 }, { tsOffset: -600, expect: [401] });
+await report(resultSecret, { resultId: `${RUN}-round-z`, sessionId, score: 500 }, { tsOffset: -600, expect: [401] });
 ok(true, 'replayed / 10-minute-old timestamp -> 401');
-await call('POST', `/games/${SLUG}/results`, { body: { resultId: 'nohdr', sessionId, score: 1 } }, [401]);
+await call('POST', `/games/${SLUG}/results`, { body: { resultId: `${RUN}-nohdr`, sessionId, score: 1 } }, [401]);
 ok(true, 'unsigned request -> 401');
-await report(resultSecret, { resultId: 'round-n', sessionId, score: -5 }, { expect: [400] });
+await report(resultSecret, { resultId: `${RUN}-round-n`, sessionId, score: -5 }, { expect: [400] });
 ok(true, 'negative score -> 400');
-await report(resultSecret, { resultId: 'round-u', sessionId: 'nosuchsession', score: 100 }, { expect: [404] });
+await report(resultSecret, { resultId: `${RUN}-round-u`, sessionId: 'nosuchsession', score: 100 }, { expect: [404] });
 ok(true, 'unknown session -> 404');
 const balanceBefore = Number(sql(`select "coinBalance" from "User" where phone='251${phone.slice(1)}'`));
 ok(balanceBefore === 15, 'no coins paid by any rejected request');
 
 console.log('Caps still apply');
-const big = (await report(resultSecret, { resultId: 'round-2', sessionId, score: 1_000_000 })).data;
+const big = (await report(resultSecret, { resultId: `${RUN}-round-2`, sessionId, score: 1_000_000 })).data;
 ok(big.coinsAwarded === 45, 'huge score capped at the 60-coin session limit (15 + 45)');
-const over = (await report(resultSecret, { resultId: 'round-3', sessionId, score: 5000 })).data;
+const over = (await report(resultSecret, { resultId: `${RUN}-round-3`, sessionId, score: 5000 })).data;
 ok(over.coinsAwarded === 0, 'session cap reached -> 0 coins, result still recorded');
 
 console.log('Ending the session pays no extra time coins');
 sql(`update "PlaySession" set "activeSeconds"=3600 where id='${sessionId}'`);
 const end = (await call('POST', `/play/${sessionId}/end`, { token: user, body: {} })).data;
 ok(end.coinsEarned === 60 && end.coinBalance === 60, 'session total 60 coins, no time-based coins on top');
-const late = (await report(resultSecret, { resultId: 'round-4', sessionId, score: 100 })).data;
+const late = (await report(resultSecret, { resultId: `${RUN}-round-4`, sessionId, score: 100 })).data;
 ok(late.coinsAwarded === 0, 'late result within grace period accepted (cap already reached)');
 
 console.log('Demo sessions never earn');
 const demo = (await call('POST', '/play/start', { token: user, body: { slug: SLUG, mode: 'DEMO' } })).data;
-const d = (await report(resultSecret, { resultId: 'demo-1', sessionId: demo.sessionId, score: 10_000 })).data;
+const d = (await report(resultSecret, { resultId: `${RUN}-demo-1`, sessionId: demo.sessionId, score: 10_000 })).data;
 ok(d.coinsAwarded === 0, 'demo result recorded, 0 coins');
 await call('POST', `/play/${demo.sessionId}/end`, { token: user, body: {} });
 
 const monitor = (await call('GET', `/admin/results?gameId=${game.id}`, { token: admin })).data;
-ok(monitor.some((r) => r.resultId === 'round-1' && r.coinsAwarded === 15), 'admin can monitor reported results');
+ok(monitor.some((r) => r.resultId === `${RUN}-round-1` && r.coinsAwarded === 15), 'admin can monitor reported results');
 
 // leave the demo database as it was: game back on time-based coins
 await call('PATCH', `/admin/games/${game.id}`, { token: admin, body: { coinMode: 'TIME' } });

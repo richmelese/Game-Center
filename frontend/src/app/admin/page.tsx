@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ErrorNote, Spinner } from '@/components/AppShell';
 import { api, API_URL, ApiError, tokens } from '@/lib/api';
-import { dateTime, displayPhone, etb, PLAN_LABEL } from '@/lib/format';
-import type { CoinMode, PlanType, Redemption } from '@/lib/types';
+import { dateTime, displayPhone, etb, PLAN_LABEL, timeRateText } from '@/lib/format';
+import type { CoinMode, CoinSettings, PlanType, Redemption } from '@/lib/types';
 
 interface Summary {
   revenue: {
@@ -44,7 +44,7 @@ interface OrdersPage {
   rows: { merchOrderId: string; status: string; planType: PlanType; game: string; customer: string | null; amountCents: number; providerTxnId: string | null; createdAt: string }[];
 }
 
-const TABS = ['Revenue', 'Games & pricing', 'Coin conversions', 'Orders', 'Support'] as const;
+const TABS = ['Revenue', 'Games & pricing', 'Coin settings', 'Coin conversions', 'Orders', 'Support'] as const;
 type Tab = (typeof TABS)[number];
 
 const isoDay = (d: Date) => new Date(d.getTime() + 3 * 3600_000).toISOString().slice(0, 10);
@@ -110,6 +110,7 @@ export default function AdminPage() {
       <main className="mx-auto max-w-6xl px-4 py-6">
         {tab === 'Revenue' && <RevenueTab onAuthError={onAuthError} />}
         {tab === 'Games & pricing' && <GamesTab onAuthError={onAuthError} />}
+        {tab === 'Coin settings' && <CoinSettingsTab onAuthError={onAuthError} />}
         {tab === 'Coin conversions' && <ConversionsTab onAuthError={onAuthError} />}
         {tab === 'Orders' && <OrdersTab onAuthError={onAuthError} />}
         {tab === 'Support' && <SupportTab onAuthError={onAuthError} />}
@@ -359,6 +360,170 @@ function GamesTab({ onAuthError }: TabProps) {
           </div>
         </section>
       ))}
+    </div>
+  );
+}
+
+const COIN_FIELDS: { key: keyof CoinSettings; label: string; hint: string }[] = [
+  { key: 'maxPerSession', label: 'Maximum coins per session', hint: 'One game session can never earn more than this' },
+  { key: 'maxPerDay', label: 'Maximum coins per day', hint: 'Per customer, all games together (Addis Ababa day)' },
+  { key: 'coinsPerEtb', label: 'Coins for 1 ETB', hint: 'Conversion rate in the wallet' },
+  { key: 'minRedeem', label: 'Minimum coins to convert', hint: 'Smallest conversion a customer can make' },
+];
+
+type CoinForm = Record<
+  'coinsPerInterval' | 'intervalMinutes' | 'maxPerSession' | 'maxPerDay' | 'coinsPerEtb' | 'minRedeem',
+  string
+>;
+
+/** Admin → Coin settings: how many coins are paid for how many minutes of play, limits and conversion. */
+function CoinSettingsTab({ onAuthError }: TabProps) {
+  const { data, error, setError } = useLoad<CoinSettings>('/admin/settings/coins', onAuthError);
+  const [form, setForm] = useState<CoinForm | null>(null);
+  const [saved, setSaved] = useState<CoinSettings | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  const current = saved ?? data;
+  useEffect(() => {
+    if (current && !form) {
+      setForm({
+        coinsPerInterval: String(current.coinsPerInterval),
+        intervalMinutes: String(current.intervalMinutes),
+        maxPerSession: String(current.maxPerSession),
+        maxPerDay: String(current.maxPerDay),
+        coinsPerEtb: String(current.coinsPerEtb),
+        minRedeem: String(current.minRedeem),
+      });
+    }
+  }, [current, form]);
+
+  if (!current || !form) return error ? <ErrorNote message={error} /> : <Spinner />;
+
+  const n = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, Number(v)])) as Record<keyof CoinForm, number>;
+  const problems: string[] = [];
+  const LABEL: Record<keyof CoinForm, string> = {
+    coinsPerInterval: 'Coins paid',
+    intervalMinutes: 'Minutes of play',
+    maxPerSession: 'Maximum coins per session',
+    maxPerDay: 'Maximum coins per day',
+    coinsPerEtb: 'Coins for 1 ETB',
+    minRedeem: 'Minimum coins to convert',
+  };
+  for (const k of Object.keys(n) as (keyof CoinForm)[]) {
+    if (!Number.isInteger(n[k]) || n[k] < 1) problems.push(`${LABEL[k]} must be a whole number of at least 1`);
+  }
+  if (n.intervalMinutes > 1440) problems.push('The interval can be at most 1440 minutes (one day)');
+  if (n.maxPerDay < n.maxPerSession) problems.push('Coins per day must be at least the coins per session');
+  const valid = problems.length === 0;
+  const changed = (Object.keys(form) as (keyof CoinForm)[]).some((k) => n[k] !== current[k]);
+
+  // what a customer would earn with the values in the form
+  const earn = (minutes: number) =>
+    Math.min(Math.floor(minutes / n.intervalMinutes) * n.coinsPerInterval, n.maxPerSession, n.maxPerDay);
+  const toEtb = (coins: number) => etb(Math.floor((coins * 100) / n.coinsPerEtb));
+
+  async function save() {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const r = await adminApi<CoinSettings>('/admin/settings/coins', { method: 'PUT', body: n });
+      setSaved(r);
+      setNotice('Saved. The new rules apply to play sessions that end from now on; coins already earned do not change.');
+    } catch (e) {
+      onAuthError(e);
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const set = (k: keyof CoinForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => (f ? { ...f, [k]: e.target.value.replace(/\D/g, '') } : f));
+  const numberInput = (k: keyof CoinForm, label: string, width = 'w-28') => (
+    <input id={`coin-${k}`} aria-label={label} className={`input ${width} py-2 text-base`} inputMode="numeric" value={form[k]} onChange={set(k)} />
+  );
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <section className="card space-y-6 p-5">
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Coins for play time</h2>
+          <p className="text-sm text-slate-500">
+            Used by games set to “Play time”. Only verified, on-screen play in purchased sessions counts; demos earn nothing.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm font-medium text-slate-700">
+            Pay {numberInput('coinsPerInterval', 'Coins paid per interval', 'w-24')} coins every
+            {numberInput('intervalMinutes', 'Interval length in minutes', 'w-24')} minute(s) of play
+          </div>
+          {valid && (
+            <p className="mt-2 text-sm text-leaf-700">
+              = {timeRateText({ coins: n.coinsPerInterval, minutes: n.intervalMinutes })}. A started interval that is not
+              finished is not paid.
+            </p>
+          )}
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {COIN_FIELDS.map((f) => (
+            <label key={f.key} htmlFor={`coin-${f.key}`} className="block text-sm font-medium text-slate-700">
+              {f.label}
+              <div className="mt-1">{numberInput(f.key as keyof CoinForm, f.label, 'w-full')}</div>
+              <span className="mt-1 block text-xs font-normal text-slate-500">{f.hint}</span>
+            </label>
+          ))}
+        </div>
+
+        {!valid && (
+          <ul className="space-y-1 rounded-xl bg-red-50 p-3 text-sm text-red-700 ring-1 ring-red-200" role="alert">
+            {problems.map((p) => <li key={p}>{p}</li>)}
+          </ul>
+        )}
+        {error && <ErrorNote message={error} />}
+        {notice && <p role="status" className="rounded-xl bg-leaf-50 p-3 text-sm text-leaf-700 ring-1 ring-leaf-400/40">{notice}</p>}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button className="btn-primary" disabled={!valid || !changed || busy} onClick={save}>
+            {busy ? 'Saving…' : 'Save coin settings'}
+          </button>
+          {current.updatedAt && (
+            <span className="text-xs text-slate-500">
+              Last changed {dateTime(current.updatedAt)}
+              {current.updatedBy ? ` by ${current.updatedBy}` : ''}
+            </span>
+          )}
+        </div>
+      </section>
+
+      <aside className="card h-fit p-5">
+        <h3 className="text-sm font-bold text-slate-900">What a customer earns</h3>
+        <p className="text-xs text-slate-500">With the values on the left, before saving</p>
+        {valid ? (
+          <table className="mt-3 w-full text-sm">
+            <thead className="text-left text-xs text-slate-500">
+              <tr><th className="py-1">Play</th><th>Coins</th><th className="text-right">Worth</th></tr>
+            </thead>
+            <tbody>
+              {[5, 10, 30, 60].map((m) => (
+                <tr key={m} className="border-t border-slate-100">
+                  <td className="py-2">{m} min</td>
+                  <td>{earn(m)}{earn(m) === n.maxPerSession && Math.floor(m / n.intervalMinutes) * n.coinsPerInterval > n.maxPerSession ? ' (limit)' : ''}</td>
+                  <td className="text-right">{toEtb(earn(m))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="mt-3 text-sm text-slate-400">Fix the values to see the example.</p>
+        )}
+        {valid && (
+          <p className="mt-4 rounded-lg bg-sun/20 p-3 text-xs text-amber-900">
+            Most a customer can earn per day: <strong>{n.maxPerDay} coins = {toEtb(n.maxPerDay)}</strong>. Compare
+            this with the daily plan price (3.00 ETB) before saving.
+          </p>
+        )}
+      </aside>
     </div>
   );
 }

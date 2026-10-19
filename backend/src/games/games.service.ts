@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Game, Plan, PlanType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CoinSettingsService } from '../settings/coin-settings.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 
 const PLAN_ORDER: PlanType[] = [
@@ -40,7 +41,14 @@ export class GamesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementsService,
+    private readonly coinSettings: CoinSettingsService,
   ) {}
+
+  /** Current play-time rate set by admins, e.g. { coins: 2, minutes: 1 } */
+  private async timeCoins() {
+    const r = await this.coinSettings.rules();
+    return { coins: r.coinsPerInterval, minutes: r.intervalMinutes };
+  }
 
   async list(category?: string) {
     const games = await this.prisma.game.findMany({
@@ -57,6 +65,7 @@ export class GamesService {
     return {
       categories: all.map((c) => c.category),
       games: games.map(gameView),
+      timeCoins: await this.timeCoins(),
     };
   }
 
@@ -69,6 +78,6 @@ export class GamesService {
     const access = userId
       ? await this.entitlements.access(userId, game.id)
       : null;
-    return { ...gameView(game), access };
+    return { ...gameView(game), access, timeCoins: await this.timeCoins() };
   }
 }

@@ -16,6 +16,7 @@ import { AppConfig } from '../config/app-config.service';
 import { coinsForSession } from '../common/coins';
 import { startOfAddisDay } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
+import { CoinSettingsService } from '../settings/coin-settings.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 
 export const HEARTBEAT_SECONDS = 15;
@@ -37,6 +38,7 @@ export class PlayService {
     private readonly prisma: PrismaService,
     private readonly config: AppConfig,
     private readonly entitlements: EntitlementsService,
+    private readonly coinSettings: CoinSettingsService,
   ) {}
 
   async start(userId: string, slug: string, mode: PlayMode) {
@@ -89,6 +91,7 @@ export class PlayService {
       url.searchParams.set('tg_session', session.id);
       gameUrl = url.toString();
     }
+    const rules = await this.coinSettings.rules();
     return {
       sessionId: session.id,
       mode,
@@ -97,9 +100,10 @@ export class PlayService {
       demoSeconds: mode === PlayMode.DEMO ? this.config.demo.seconds : null,
       coinRules: {
         coinMode: game.coinMode,
-        perMinute: this.config.coins.perMinute,
+        coinsPerInterval: rules.coinsPerInterval,
+        intervalMinutes: rules.intervalMinutes,
         pointsPerCoin: game.pointsPerCoin,
-        maxPerSession: this.config.coins.maxPerSession,
+        maxPerSession: rules.maxPerSession,
       },
     };
   }
@@ -199,7 +203,7 @@ export class PlayService {
     return coinsForSession(
       activeSeconds,
       await this.earnedToday(userId),
-      this.config.coins,
+      await this.coinSettings.rules(),
     );
   }
 
@@ -207,6 +211,7 @@ export class PlayService {
     if (s.endedAt) return this.summary(s);
     const now = new Date();
     const activeSeconds = s.activeSeconds + this.creditFor(s, now);
+    const rules = await this.coinSettings.rules(); // rules in force when the session ends
 
     const result = await this.prisma.$transaction(async (tx) => {
       // claim the end exactly once
@@ -231,7 +236,7 @@ export class PlayService {
       const coins = coinsForSession(
         activeSeconds,
         today._sum.amount ?? 0,
-        this.config.coins,
+        rules,
       );
       if (coins > 0) {
         const user = await tx.user.update({

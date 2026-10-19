@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { CoinRules } from '../common/coins';
 
 /** Typed access to the business rules defined in the proposal (see .env.example). */
 @Injectable()
@@ -65,9 +66,11 @@ export class AppConfig {
     };
   }
 
-  get coins() {
+  /** Initial coin rules only; admins change them later in Coin settings (CoinSettingsService). */
+  get defaultCoinRules(): CoinRules {
     return {
-      perMinute: this.num('COINS_PER_MINUTE', 2),
+      coinsPerInterval: this.num('COINS_PER_MINUTE', 2),
+      intervalMinutes: 1,
       maxPerSession: this.num('MAX_COINS_PER_SESSION', 60),
       maxPerDay: this.num('MAX_COINS_PER_DAY', 200),
       perEtb: this.num('COINS_PER_ETB', 100),

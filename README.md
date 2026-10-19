@@ -40,7 +40,13 @@ The app follows the proposal's Customer Journey exactly. Each step maps to one s
 
 ### Coin rules (steps 7–8)
 
-Limits and rates are configurable in `backend/.env`. Each game earns coins in one of two ways, chosen in admin → *Games & pricing*:
+Rates and limits are set in admin → **Coin settings**, and changes apply immediately:
+- **play-time rate:** "X coins every Y minutes", e.g. 2 coins every 1 minute or 5 coins every 2 minutes;
+- coins per session and per day;
+- coins for 1 ETB;
+- minimum conversion.
+
+The screen shows what a customer would earn before you save. The values in `backend/.env` are only used to create the first settings. Each game earns coins in one of two ways, chosen in admin → *Games & pricing*:
 
 | Mode | How coins are earned | Needs |
 |---|---|---|
@@ -51,8 +57,8 @@ Scores sent from the customer's phone are never paid, because they can be faked.
 
 Common rules:
 
-- Default rates and limits:
-  - Play time: 2 coins per minute. Score: 100 points = 1 coin (set per game).
+- Starting rates and limits (change them in *Coin settings*):
+  - Play time: 2 coins every minute. Score: 100 points = 1 coin (set per game).
   - At most 60 coins per session and 200 per day, in both modes.
   - 100 coins = 1 ETB.
   - Minimum conversion is 100 coins.
@@ -92,9 +98,10 @@ npm run dev
 cd backend && npm test               # revenue split, coins, phone, time zone, telebirr + result signatures
 node scripts/journey-check.mjs       # with the API running: walks all 8 journey steps end to end
 node scripts/score-check.mjs         # with the API running: acts as a game supplier, tests score coins and attacks
+node scripts/coin-settings-check.mjs # with the API running: changes Coin settings as admin, checks earning and converting, then restores them
 ```
 
-Both scripts edit play time directly in the local Docker database to simulate long sessions. Use them only against development.
+These scripts edit play time directly in the local Docker database to simulate long sessions. Use them only against development.
 
 ## Look and feel
 

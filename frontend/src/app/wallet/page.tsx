@@ -5,7 +5,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { AppShell, ErrorNote, Spinner } from '@/components/AppShell';
 import { JourneyProgress } from '@/components/JourneySteps';
 import { api } from '@/lib/api';
-import { dateTime, displayPhone, etb } from '@/lib/format';
+import { dateTime, displayPhone, etb, timeRateText } from '@/lib/format';
 import type { CoinTx, Redemption, Wallet } from '@/lib/types';
 import { useRequireAuth } from '@/lib/use-require-auth';
 
@@ -121,7 +121,7 @@ function WalletScreen() {
         {!canConvert && (
           <p className="mt-3 flex gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
             <Info className="h-4 w-4 shrink-0 text-brand-600" aria-hidden />
-            {`You need at least ${rules.minRedeemCoins} coins to convert. Purchased games earn coins for play time (${rules.coinsPerMinute} per minute) or for your score, depending on the game — up to ${rules.maxCoinsPerSession} per session and ${rules.maxCoinsPerDay} per day.`}
+            {`You need at least ${rules.minRedeemCoins} coins to convert. Purchased games earn coins for play time (${timeRateText({ coins: rules.coinsPerInterval, minutes: rules.intervalMinutes })}) or for your score, depending on the game — up to ${rules.maxCoinsPerSession} per session and ${rules.maxCoinsPerDay} per day.`}
           </p>
         )}
         {error && <div className="mt-3"><ErrorNote message={error} /></div>}

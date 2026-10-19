@@ -10,6 +10,7 @@ import { AppConfig } from '../config/app-config.service';
 import { coinsToCents } from '../common/coins';
 import { startOfAddisDay } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
+import { CoinSettingsService } from '../settings/coin-settings.service';
 
 /**
  * Journey step 8: customer converts accumulated coins into ETB / e-money.
@@ -24,10 +25,11 @@ export class WalletService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: AppConfig,
+    private readonly coinSettings: CoinSettingsService,
   ) {}
 
   async summary(userId: string) {
-    const rules = this.config.coins;
+    const rules = await this.coinSettings.rules();
     const [user, earned] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId } }),
       this.prisma.coinTransaction.aggregate({
@@ -47,7 +49,8 @@ export class WalletService {
       rules: {
         coinsPerEtb: rules.perEtb,
         minRedeemCoins: rules.minRedeem,
-        coinsPerMinute: rules.perMinute,
+        coinsPerInterval: rules.coinsPerInterval,
+        intervalMinutes: rules.intervalMinutes,
         maxCoinsPerSession: rules.maxPerSession,
         maxCoinsPerDay: rules.maxPerDay,
         instantPayout: this.config.payoutProvider === 'mock',
@@ -80,7 +83,7 @@ export class WalletService {
   }
 
   async convert(userId: string, coins: number) {
-    const rules = this.config.coins;
+    const rules = await this.coinSettings.rules();
     if (!Number.isInteger(coins) || coins < rules.minRedeem) {
       throw new BadRequestException(
         `You can convert from ${rules.minRedeem} coins`,
