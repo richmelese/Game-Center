@@ -10,18 +10,6 @@ Implementation of **LEMAT TECHNOLOGY PLC's RFP response to Ethio Telecom** ("Gam
 ## Customer Journey (proposal section 2.2)
 
 The app follows the proposal's Customer Journey exactly. Each step maps to one screen and one API endpoint. Every customer screen shows a "Step N of 8" tracker.
-
-| # | Customer Journey step (proposal wording) | Screen | API |
-|---|---|---|---|
-| 1 | Customer opens telebirr Game Center. | `/` (SuperApp single sign-on or `/login` OTP) | `POST /api/auth/telebirr`, `POST /api/auth/otp/*` |
-| 2 | Customer discovers/selects an available game. | `/`, `/games/[slug]` | `GET /api/games`, `GET /api/games/:slug` |
-| 3 | Customer completes the applicable purchase/subscription flow where the game is monetized. | `/games/[slug]` (Daily / Weekly / Monthly / Pay per play) | `POST /api/payments/checkout` |
-| 4 | Payment is processed through the approved telebirr/payment integration. | telebirr checkout (`/mock-telebirr/checkout` in development) | `POST /api/payments/telebirr/notify` |
-| 5 | Successful transaction results in the applicable game access/entitlement. | `/payment/result` | `GET /api/payments/orders/:id` |
-| 6 | Customer launches and uses the game. | `/play/[slug]` | `POST /api/play/start`, `/heartbeat` |
-| 7 | Customers play the purchased games and accumulate the coins. | `/play/[slug]` → coin summary | `POST /api/play/:id/end` |
-| 8 | Customer can change/convert the accumulated coins into ETB/e-money in hassle free ways. | `/wallet` | `POST /api/wallet/convert` |
-
 ### Business rules from the proposal
 
 - **Games (2.1):** the 8 games, with their categories, descriptions, target audiences and URLs, are loaded by `npm run seed`.
