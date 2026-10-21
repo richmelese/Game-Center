@@ -18,12 +18,14 @@ const sql = (q) => execSync(`docker exec telegame-postgres psql -U telegame -d t
 const ok = (cond, msg) => { if (!cond) throw new Error('FAILED: ' + msg); console.log('  ✓', msg); };
 const phone = '09' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
 
-console.log('Step 1 - customer opens telebirr Game Center (SuperApp SSO)');
-const sso = await call('POST', '/auth/telebirr', { authToken: `mock-${phone}` });
+console.log('Step 1 - customer opens telebirr Game Center (phone + code login)');
+await call('GET', '/games', null, [401]);
+ok(true, 'catalog is closed without a login (401)');
+const otp = await call('POST', '/auth/otp/request', { phone });
+ok(/^\d{6}$/.test(otp.data.devCode), 'login code sent (echoed in development)');
+const sso = await call('POST', '/auth/otp/verify', { phone, code: otp.data.devCode });
 token = sso.data.accessToken;
 ok(sso.data.user.phone === '251' + phone.slice(1), `logged in as ${sso.data.user.phone}`);
-const otp = await call('POST', '/auth/otp/request', { phone: '0911000001' });
-ok(/^\d{6}$/.test(otp.data.devCode), 'OTP login also available (dev code echoed)');
 
 console.log('Step 2 - discovers / selects a game');
 const list = await call('GET', '/games');

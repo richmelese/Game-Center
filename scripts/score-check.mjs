@@ -58,7 +58,8 @@ ok(updated.coinMode === 'SCORE' && updated.hasResultSecret && !('resultSecret' i
 
 console.log('Customer buys and launches the game');
 const phone = '09' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
-const user = (await call('POST', '/auth/telebirr', { body: { authToken: `mock-${phone}` } })).data.accessToken;
+const code = (await call('POST', '/auth/otp/request', { body: { phone } })).data.devCode;
+const user = (await call('POST', '/auth/otp/verify', { body: { phone, code } })).data.accessToken;
 const detail = (await call('GET', `/games/${SLUG}`, { token: user })).data;
 ok(detail.coinMode === 'SCORE' && detail.pointsPerCoin === 100, 'game page shows score-based coins');
 const daily = detail.plans.find((p) => p.type === 'DAILY');

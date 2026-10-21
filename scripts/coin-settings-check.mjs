@@ -33,7 +33,8 @@ console.log('Current settings:', JSON.stringify(original));
 try {
   console.log('Only admins, only valid values');
   const phone = '09' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
-  const user = (await call('POST', '/auth/telebirr', { body: { authToken: `mock-${phone}` } })).accessToken;
+  const code = (await call('POST', '/auth/otp/request', { body: { phone } })).devCode;
+  const user = (await call('POST', '/auth/otp/verify', { body: { phone, code } })).accessToken;
   await call('GET', '/admin/settings/coins', { token: user }, [403]);
   await call('PUT', '/admin/settings/coins', { token: user, body: original }, [403]);
   ok(true, 'customers cannot read or change coin settings (403)');

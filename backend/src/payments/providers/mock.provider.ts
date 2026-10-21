@@ -44,8 +44,17 @@ export class MockPaymentProvider implements PaymentProvider {
     };
   }
 
-  /** Mock SuperApp token format: "mock-<phone>", e.g. mock-0911223344 */
+  /**
+   * Mock SuperApp token format: "mock-<phone>", e.g. mock-0911223344.
+   * Logs in as any number without proof, so it only works with MOCK_TELEBIRR_SSO=true
+   * outside production.
+   */
   authenticate(authToken: string): Promise<TelebirrIdentity> {
+    if (!this.config.mockTelebirrSso) {
+      return Promise.reject(
+        new UnauthorizedException('telebirr sign-in is not available'),
+      );
+    }
     const phone = authToken.startsWith('mock-')
       ? normalizeEthioPhone(authToken.slice(5))
       : null;

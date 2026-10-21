@@ -197,8 +197,14 @@ export class AdminService {
       orderBy: { paidAt: 'asc' },
     });
     const money = (c: number) => (c / 100).toFixed(2);
-    const esc = (v: string) =>
-      /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    const esc = (raw: string) => {
+      // stop spreadsheet formula injection (=, +, -, @, tab, CR at the start of a text cell)
+      const v =
+        /^[=+\-@\t\r]/.test(raw) && !/^-?\d+(\.\d+)?$/.test(raw)
+          ? `'${raw}`
+          : raw;
+      return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    };
     const header = [
       'merch_order_id',
       'telebirr_txn_id',

@@ -91,6 +91,11 @@ export class PaymentsService {
 
   /** telebirr server-to-server notification (notify_url). */
   async handleProviderNotification(body: Record<string, unknown>) {
+    // The simulated provider has no signature, so its notifications are never accepted from
+    // the public callback URL — otherwise anyone could mark any order as paid.
+    if (this.provider.name !== 'telebirr') {
+      throw new ForbiddenException('Payment notifications are not enabled');
+    }
     const notification = this.provider.parseNotification(body);
     await this.fulfil(notification, body);
     return { code: 0, msg: 'success' };
@@ -134,7 +139,13 @@ export class PaymentsService {
         });
         return;
       }
-      if (n.amountCents !== undefined && n.amountCents !== order.amountCents) {
+      // a real telebirr confirmation must state the amount paid, and it must match the order
+      const amountMissing =
+        this.provider.name === 'telebirr' && n.amountCents === undefined;
+      if (
+        amountMissing ||
+        (n.amountCents !== undefined && n.amountCents !== order.amountCents)
+      ) {
         this.logger.error(
           `Amount mismatch on ${order.merchOrderId}: paid ${n.amountCents}, expected ${order.amountCents}`,
         );

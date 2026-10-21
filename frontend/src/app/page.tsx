@@ -2,27 +2,28 @@
 
 import { ChevronDown, Coins, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { AppShell, ErrorNote, Spinner } from '@/components/AppShell';
 import { GameArt } from '@/components/GameArt';
 import { JourneyList } from '@/components/JourneySteps';
 import { api } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useRequireAuth } from '@/lib/use-require-auth';
 import { etb } from '@/lib/format';
 import type { Game } from '@/lib/types';
 
 /** Journey step 1 (open the Game Center) and step 2 (discover / select a game). */
-export default function GameCenterPage() {
-  const { user } = useAuth();
+function GameCenter() {
+  const { user } = useRequireAuth();
   const [data, setData] = useState<{ categories: string[]; games: Game[] } | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!user) return; // the catalog requires a login
     api<{ categories: string[]; games: Game[] }>('/games')
       .then(setData)
       .catch((e) => setError(e.message));
-  }, []);
+  }, [user]);
 
   const games = data?.games.filter((g) => !category || g.category === category) ?? [];
   const fromPrice = (g: Game) => Math.min(...g.plans.filter((p) => p.type !== 'PAY_PER_USE').map((p) => p.priceCents));
@@ -117,5 +118,13 @@ export default function GameCenterPage() {
         </>
       )}
     </AppShell>
+  );
+}
+
+export default function GameCenterPage() {
+  return (
+    <Suspense>
+      <GameCenter />
+    </Suspense>
   );
 }

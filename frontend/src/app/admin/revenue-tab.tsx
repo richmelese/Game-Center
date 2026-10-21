@@ -21,11 +21,7 @@ import { etb, PLAN_LABEL } from '@/lib/format';
 import type { CoinSettings, PlanType } from '@/lib/types';
 import { adminApi, isoDay, useLoad, type TabProps } from './admin-api';
 
-/*
- * Chart colours, validated with the dataviz palette checker:
- *  - LEMAT / Ethio Telecom: CVD ΔE 24.7, contrast >= 3:1 — same colour in every chart on this page
- *  - plans (subscription mix): CVD ΔE >= 16.3; three are below 3:1 so every segment has a visible label
- */
+
 const C = {
   lemat: '#2a78d6',
   telecom: '#eb6834',

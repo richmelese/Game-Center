@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { PlayMode } from '@prisma/client';
 import {
   IsEnum,
@@ -41,7 +41,7 @@ export class PlayController {
     return this.play.start(user.id, dto.slug, dto.mode);
   }
 
-  @SkipThrottle()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } }) // app sends one every 15 s
   @Post(':id/heartbeat')
   @HttpCode(200)
   heartbeat(@CurrentUser() user: AuthUser, @Param('id') id: string) {

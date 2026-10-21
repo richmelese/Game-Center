@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { CurrentUser, Public, type AuthUser } from '../common/auth.decorators';
+import { CurrentUser, type AuthUser } from '../common/auth.decorators';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { GamesService } from './games.service';
 
@@ -10,16 +10,14 @@ export class GamesController {
     private readonly entitlements: EntitlementsService,
   ) {}
 
-  @Public()
   @Get('games')
   list(@Query('category') category?: string) {
     return this.games.list(category || undefined);
   }
 
-  @Public()
   @Get('games/:slug')
-  detail(@Param('slug') slug: string, @CurrentUser() user?: AuthUser) {
-    return this.games.detail(slug, user?.id);
+  detail(@Param('slug') slug: string, @CurrentUser() user: AuthUser) {
+    return this.games.detail(slug, user.id);
   }
 
   @Get('me/subscriptions')

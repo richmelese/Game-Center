@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Role, User } from '@prisma/client';
-import { createHash, randomInt } from 'crypto';
+import { createHash, randomInt, timingSafeEqual } from 'crypto';
 import { AppConfig } from '../config/app-config.service';
 import { normalizeEthioPhone } from '../common/phone';
 import { verifyPassword } from '../common/password';
@@ -25,10 +25,22 @@ const OTP_RESEND_SECONDS = 60;
 const OTP_MAX_ATTEMPTS = 5;
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+const sameHash = (a: string, b: string) =>
+  a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+/** Admin login lockout: after this many failures for one email, wait LOCK_MINUTES. */
+const ADMIN_MAX_FAILURES = 5;
+const ADMIN_LOCK_MINUTES = 15;
+/** Used when the email is unknown so a wrong email and a wrong password take the same time. */
+const DUMMY_HASH = 'scrypt$00000000000000000000000000000000$' + '0'.repeat(128);
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly adminFailures = new Map<
+    string,
+    { count: number; until: number }
+  >();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -69,8 +81,10 @@ export class AuthService {
         expiresAt: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
       },
     });
-    // Production: deliver through Ethio telecom's SMS gateway. Development: echo the code.
-    if (this.config.otpDevEcho) this.logger.log(`OTP for ${msisdn}: ${code}`);
+    // Production: deliver through Ethio telecom's SMS gateway (not connected yet).
+    // Development: the code is written to the server log (and echoed only if OTP_DEV_ECHO=true).
+    if (!this.config.isProduction)
+      this.logger.log(`OTP for ${msisdn}: ${code}`);
     return {
       sent: true,
       expiresInSeconds: OTP_TTL_SECONDS,
@@ -88,7 +102,7 @@ export class AuthService {
       throw new UnauthorizedException('Code expired, request a new one');
     if (otp.attempts >= OTP_MAX_ATTEMPTS)
       throw new UnauthorizedException('Too many attempts, request a new code');
-    if (otp.codeHash !== sha256(`${msisdn}:${code}`)) {
+    if (!sameHash(otp.codeHash, sha256(`${msisdn}:${code}`))) {
       await this.prisma.otpCode.update({
         where: { id: otp.id },
         data: { attempts: { increment: 1 } },
@@ -134,15 +148,36 @@ export class AuthService {
   }
 
   async adminLogin(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
-    const ok =
-      user?.passwordHash &&
-      user.role === Role.ADMIN &&
-      (await verifyPassword(password, user.passwordHash));
-    if (!user || !ok)
+    const key = email.toLowerCase();
+    const lock = this.adminFailures.get(key);
+    if (lock && lock.until > Date.now()) {
+      throw new HttpException(
+        `Too many failed attempts. Try again in ${Math.ceil((lock.until - Date.now()) / 60_000)} minutes.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    const user = await this.prisma.user.findUnique({ where: { email: key } });
+    const isAdmin = user?.role === Role.ADMIN && !!user.passwordHash;
+    // always run the password check so response time does not reveal which emails exist
+    const passwordOk = await verifyPassword(
+      password,
+      isAdmin ? user.passwordHash! : DUMMY_HASH,
+    );
+    if (!user || !isAdmin || !passwordOk) {
+      // start counting again only after a lock has expired (until = 0 means "not locked yet")
+      const lockExpired = !!lock && lock.until > 0 && lock.until <= Date.now();
+      const count = (lockExpired ? 0 : (lock?.count ?? 0)) + 1;
+      this.adminFailures.set(key, {
+        count,
+        until:
+          count >= ADMIN_MAX_FAILURES
+            ? Date.now() + ADMIN_LOCK_MINUTES * 60_000
+            : 0,
+      });
+      this.logger.warn(`Failed admin login for ${key} (${count})`);
       throw new UnauthorizedException('Invalid email or password');
+    }
+    this.adminFailures.delete(key);
     return this.session(user);
   }
 
@@ -153,10 +188,13 @@ export class AuthService {
   }
 
   private async session(user: User) {
-    const accessToken = await this.jwt.signAsync({
-      sub: user.id,
-      role: user.role,
-    });
+    // admin sessions are short-lived (8h by default); customers use JWT_EXPIRES_IN
+    const accessToken = await this.jwt.signAsync(
+      { sub: user.id, role: user.role },
+      user.role === Role.ADMIN
+        ? { expiresIn: this.config.adminTokenTtl as `${number}h` }
+        : {},
+    );
     return { accessToken, user: this.publicUser(user) };
   }
 

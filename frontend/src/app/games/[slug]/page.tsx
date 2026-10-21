@@ -3,21 +3,21 @@
 import { Check, Clock, Coins, Play, ShieldCheck, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { AppShell, ErrorNote, Spinner } from '@/components/AppShell';
 import { GameArt } from '@/components/GameArt';
 import { JourneyProgress } from '@/components/JourneySteps';
 import { api } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useRequireAuth } from '@/lib/use-require-auth';
 import { coinRuleText, dateTime, etb, PLAN_LABEL, PLAN_PERIOD } from '@/lib/format';
 import type { Game, GameAccess, Plan, TimeCoins } from '@/lib/types';
 
 type Detail = Game & { access: GameAccess | null; timeCoins: TimeCoins };
 
 /** Journey step 2 (select the game) and step 3 (purchase / subscription flow). */
-export default function GamePage() {
+function GameDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const { user, ready } = useAuth();
+  const { user, ready } = useRequireAuth();
   const router = useRouter();
   const [game, setGame] = useState<Detail | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export default function GamePage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !user) return; // game details require a login
     api<Detail>(`/games/${slug}`)
       .then((g) => {
         setGame(g);
@@ -167,5 +167,13 @@ export default function GamePage() {
         </section>
       )}
     </AppShell>
+  );
+}
+
+export default function GamePage() {
+  return (
+    <Suspense>
+      <GameDetail />
+    </Suspense>
   );
 }

@@ -99,6 +99,7 @@ cd backend && npm test               # revenue split, coins, phone, time zone, t
 node scripts/journey-check.mjs       # with the API running: walks all 8 journey steps end to end
 node scripts/score-check.mjs         # with the API running: acts as a game supplier, tests score coins and attacks
 node scripts/coin-settings-check.mjs # with the API running: changes Coin settings as admin, checks earning and converting, then restores them
+node scripts/security-audit.mjs      # with both apps running: 115 penetration-style attack checks (see docs/SECURITY.md)
 ```
 
 These scripts edit play time directly in the local Docker database to simulate long sessions. Use them only against development.

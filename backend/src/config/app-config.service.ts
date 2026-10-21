@@ -46,8 +46,49 @@ export class AppConfig {
   get jwtExpiresIn() {
     return this.str('JWT_EXPIRES_IN', '7d');
   }
+  get isProduction() {
+    return this.config.get<string>('NODE_ENV') === 'production';
+  }
+  /** Development only: return the login code in the API response. Never in production. */
   get otpDevEcho() {
-    return this.bool('OTP_DEV_ECHO', false);
+    return !this.isProduction && this.bool('OTP_DEV_ECHO', false);
+  }
+  /**
+   * Development only: accept "mock-<phone>" as a telebirr SuperApp token. This logs in as any
+   * number without proof, so it is off unless explicitly enabled, and never in production.
+   */
+  get mockTelebirrSso() {
+    return !this.isProduction && this.bool('MOCK_TELEBIRR_SSO', false);
+  }
+  /** Number of reverse proxies in front of the API (for the client IP used by rate limits). */
+  get trustProxyHops() {
+    return this.num('TRUST_PROXY_HOPS', 0);
+  }
+  get adminTokenTtl() {
+    return this.str('ADMIN_JWT_EXPIRES_IN', '8h');
+  }
+
+  /** Refuses to start a production server with development shortcuts or weak secrets. */
+  assertProductionSafe() {
+    if (!this.isProduction) return;
+    const problems: string[] = [];
+    if (this.paymentProvider === 'mock')
+      problems.push('PAYMENT_PROVIDER=mock (simulated telebirr)');
+    if (this.payoutProvider === 'mock')
+      problems.push('PAYOUT_PROVIDER=mock (simulated payouts)');
+    if (this.bool('OTP_DEV_ECHO', false)) problems.push('OTP_DEV_ECHO=true');
+    if (this.bool('MOCK_TELEBIRR_SSO', false))
+      problems.push('MOCK_TELEBIRR_SSO=true');
+    if (this.config.get<string>('ADMIN_PASSWORD') === 'ChangeMe123!') {
+      problems.push('ADMIN_PASSWORD is still the default');
+    }
+    if (/^https?:\/\/localhost/.test(this.frontendUrl))
+      problems.push('FRONTEND_URL points to localhost');
+    if (problems.length) {
+      throw new Error(
+        `Refusing to start in production:\n - ${problems.join('\n - ')}`,
+      );
+    }
   }
 
   get revenue() {
