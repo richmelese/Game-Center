@@ -51,7 +51,7 @@ interface Split {
 interface Summary {
   revenue: Split & { paidOrders: number; grossCents: number; vatCents: number; otherTaxCents: number };
   byPlan: (Split & { planType: PlanType; orders: number; grossCents: number })[];
-  byGame: (Split & { gameId: string; slug: string; title: string; orders: number; grossCents: number })[];
+  byGame: (Split & { gameId: string; slug: string; imageUrl: string | null; title: string; orders: number; grossCents: number })[];
   users: number;
   activeSubscriptions: number;
   plays: { full: number; demo: number };
@@ -557,7 +557,7 @@ function ByGame({ s }: { s: Summary }) {
               className="group flex items-center gap-3 rounded-lg py-3 outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             >
               {r.slug && (
-                <GameArt slug={r.slug} color="#64748b" title={r.title} className="h-11 w-11 shrink-0 rounded-xl" sizes="44px" />
+                <GameArt slug={r.slug} image={r.imageUrl} color="#64748b" title={r.title} className="h-11 w-11 shrink-0 rounded-xl" sizes="44px" />
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-3">

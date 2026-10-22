@@ -119,7 +119,13 @@ export class EntitlementsService {
       },
       include: {
         game: {
-          select: { slug: true, title: true, category: true, themeColor: true },
+          select: {
+            slug: true,
+            title: true,
+            category: true,
+            themeColor: true,
+            imageUrl: true,
+          },
         },
       },
       orderBy: [{ expiresAt: 'asc' }, { createdAt: 'asc' }],
@@ -127,7 +133,7 @@ export class EntitlementsService {
     return rows.map((e) => ({
       id: e.id,
       type: e.type,
-      game: e.game,
+      game: { ...e.game, imageUrl: this.config.gameAssetUrl(e.game.imageUrl) },
       startsAt: e.startsAt,
       expiresAt: e.expiresAt,
       playsRemaining: e.playsRemaining,

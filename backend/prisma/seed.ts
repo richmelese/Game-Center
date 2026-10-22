@@ -3,7 +3,21 @@
  * plus the admin account. Safe to run repeatedly (upserts).
  */
 import { PlanType, PrismaClient, Role } from '@prisma/client';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { hashPassword } from '../src/common/password';
+
+interface Catalog {
+  categories: { id: string; label: string; color: string }[];
+  games: {
+    slug: string;
+    name: string;
+    category: string;
+    path: string;
+    image: string;
+    description: string;
+  }[];
+}
 
 const prisma = new PrismaClient();
 
@@ -136,6 +150,41 @@ async function main() {
     }
   }
 
+  // The 140 games of the Ethio Telecom Games Portal. Paths are relative and resolved against
+  // GAMES_BASE_URL at runtime, so moving the game server only needs a .env change.
+  const catalog = JSON.parse(
+    readFileSync(join(__dirname, 'games-catalog.json'), 'utf8'),
+  ) as Catalog;
+  const categories = new Map(catalog.categories.map((c) => [c.id, c]));
+  for (const [i, g] of catalog.games.entries()) {
+    const category = categories.get(g.category);
+    if (!category)
+      throw new Error(`Unknown category ${g.category} for ${g.slug}`);
+    const game = await prisma.game.upsert({
+      where: { slug: g.slug },
+      // re-seeding only refreshes the links; titles, prices and settings edited in admin stay
+      update: { gameUrl: g.path, imageUrl: g.image },
+      create: {
+        slug: g.slug,
+        title: g.name,
+        category: category.label,
+        description: g.description,
+        targetAudience: 'All Ages',
+        gameUrl: g.path,
+        imageUrl: g.image,
+        themeColor: category.color,
+        sortOrder: GAMES.length + i,
+      },
+    });
+    for (const p of PLANS) {
+      await prisma.plan.upsert({
+        where: { gameId_type: { gameId: game.id, type: p.type } },
+        update: {},
+        create: { gameId: game.id, ...p },
+      });
+    }
+  }
+
   const email = (
     process.env.ADMIN_EMAIL ?? 'admin@lemattech.com'
   ).toLowerCase();
@@ -154,7 +203,7 @@ async function main() {
   });
 
   console.log(
-    `Seeded ${GAMES.length} games x ${PLANS.length} plans and admin ${email}`,
+    `Seeded ${GAMES.length + catalog.games.length} games (${catalog.games.length} from the games portal) x ${PLANS.length} plans and admin ${email}`,
   );
 }
 

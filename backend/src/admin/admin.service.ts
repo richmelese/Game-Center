@@ -16,6 +16,7 @@ import {
 } from '@prisma/client';
 import { maskPhone } from '../common/phone';
 import { newResultSecret } from '../results/result-signature';
+import { AppConfig } from '../config/app-config.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface Range {
@@ -26,7 +27,10 @@ export interface Range {
 /** Reporting & operations for LEMAT and Ethio Telecom (revenue reconciliation, payouts, support). */
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: AppConfig,
+  ) {}
 
   async summary({ from, to }: Range) {
     const paid = { status: OrderStatus.PAID, paidAt: { gte: from, lt: to } };
@@ -102,7 +106,7 @@ export class AdminService {
     ]);
 
     const games = await this.prisma.game.findMany({
-      select: { id: true, title: true, slug: true },
+      select: { id: true, title: true, slug: true, imageUrl: true },
     });
     const gameById = new Map(games.map((g) => [g.id, g]));
     const s = revenue._sum;
@@ -128,6 +132,9 @@ export class AdminService {
       byGame: byGame.map((g) => ({
         gameId: g.gameId,
         slug: gameById.get(g.gameId)?.slug ?? '',
+        imageUrl: this.config.gameAssetUrl(
+          gameById.get(g.gameId)?.imageUrl ?? null,
+        ),
         title: gameById.get(g.gameId)?.title ?? g.gameId,
         orders: g._count,
         grossCents: g._sum.amountCents ?? 0,

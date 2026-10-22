@@ -2,11 +2,14 @@ import type { NextConfig } from 'next';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
 const apiOrigin = new URL(API_URL).origin;
+// the hosted HTML5 games (Ethio Telecom Games Portal): game frames and cover pictures come from here
+const GAMES_BASE_URL = process.env.NEXT_PUBLIC_GAMES_BASE_URL ?? 'http://localhost:8642';
+const gamesOrigin = new URL(GAMES_BASE_URL).origin;
 const isDev = process.env.NODE_ENV !== 'production';
 
 /**
  * Content-Security-Policy: scripts and styles only from this site, API calls only to the
- * teleGame API, game frames only from the game supplier, and the site itself cannot be
+ * teleGame API, game frames and pictures only from the game suppliers, and the site itself cannot be
  * framed by other sites (clickjacking). Next.js needs inline scripts/styles; dev mode also
  * needs eval for hot reload.
  */
@@ -14,10 +17,10 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  `img-src 'self' data: blob: ${gamesOrigin}`,
   "font-src 'self' data:",
   `connect-src 'self' ${apiOrigin}${isDev ? ' ws:' : ''}`,
-  'frame-src https://muen-web.tmofamily.com',
+  `frame-src https://muen-web.tmofamily.com ${gamesOrigin}`,
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",

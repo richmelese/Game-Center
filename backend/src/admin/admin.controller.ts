@@ -24,7 +24,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUrl,
+  Matches,
   Length,
   Max,
   Min,
@@ -39,8 +39,11 @@ class UpdateGameDto {
   @IsOptional() @IsString() @Length(2, 40) category?: string;
   @IsOptional() @IsString() @Length(5, 500) description?: string;
   @IsOptional() @IsString() @Length(2, 40) targetAudience?: string;
+  /** https URL, or a path on GAMES_BASE_URL such as /games/puzzle/2048/index.html */
   @IsOptional()
-  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @Matches(/^(https:\/\/[^\s"'<>]+|\/[\w\-./]+)$/, {
+    message: 'gameUrl must be an https URL or a path starting with /',
+  })
   gameUrl?: string;
   @IsOptional() @IsHexColor() themeColor?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;

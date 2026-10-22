@@ -30,8 +30,8 @@ const ICONS: Record<string, LucideIcon> = {
 const COVER_ZOOM: Record<string, number> = { 'kids-coloring': 1.3 };
 
 /**
- * Game cover art. Uses the game's own icon (icon-256.png from the game's index.html,
- * stored in /public/games/<slug>.png). A blurred copy fills the frame behind it so
+ * Game cover art. Uses `image` when the API provides one (thumbnails from the games portal on
+ * GAMES_BASE_URL), otherwise the game's own icon stored in /public/games/<slug>.png. A blurred copy fills the frame behind it so
  * icons with rounded or bordered corners still look full-bleed. Falls back to a
  * generated cover for games without artwork.
  *
@@ -47,6 +47,7 @@ export function GameArt({
   fit = 'cover',
   sizes = '(max-width: 448px) 50vw, 224px',
   priority = false,
+  image,
 }: {
   slug: string;
   color: string;
@@ -56,9 +57,13 @@ export function GameArt({
   fit?: 'cover' | 'contain';
   sizes?: string;
   priority?: boolean;
+  /** full URL of the cover picture from the API (imageUrl) */
+  image?: string | null;
 }) {
   const [missing, setMissing] = useState(false);
-  const src = `/games/${slug}.png`;
+  const src = image ?? `/games/${slug}.png`;
+  // remote thumbnails are already web-sized; serve them as-is instead of through the Next image optimizer
+  const remote = Boolean(image);
 
   if (missing) {
     const Icon = ICONS[slug] ?? Circle;
@@ -82,6 +87,7 @@ export function GameArt({
         aria-hidden
         fill
         sizes={sizes}
+        unoptimized={remote}
         className="scale-125 object-cover opacity-80 blur-xl"
       />
       <Image
@@ -90,8 +96,9 @@ export function GameArt({
         fill
         sizes={sizes}
         priority={priority}
+        unoptimized={remote}
         onError={() => setMissing(true)}
-        style={fit === 'cover' ? { transform: `scale(${COVER_ZOOM[slug] ?? 1.08})` } : undefined}
+        style={fit === 'cover' ? { transform: `scale(${COVER_ZOOM[slug] ?? (remote ? 1 : 1.08)})` } : undefined}
         className={
           fit === 'cover'
             ? 'object-cover'

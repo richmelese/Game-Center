@@ -105,7 +105,10 @@ model Game {
   category       String
   description    String
   targetAudience String
+  /// full https URL, or a path ("/games/...") resolved against GAMES_BASE_URL
   gameUrl        String
+  /// cover picture: full URL, or a path resolved against GAMES_BASE_URL; null = built-in art
+  imageUrl       String?
   themeColor     String   @default("#1d4ed8")
   isActive       Boolean  @default(true)
   sortOrder      Int      @default(0)

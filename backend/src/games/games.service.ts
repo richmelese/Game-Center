@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Game, Plan, PlanType } from '@prisma/client';
+import { AppConfig } from '../config/app-config.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CoinSettingsService } from '../settings/coin-settings.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
@@ -19,7 +20,7 @@ export const planView = (p: Plan) => ({
   plays: p.plays,
 });
 
-const gameView = (g: Game & { plans: Plan[] }) => ({
+const gameView = (g: Game & { plans: Plan[] }, config: AppConfig) => ({
   id: g.id,
   slug: g.slug,
   title: g.title,
@@ -27,6 +28,7 @@ const gameView = (g: Game & { plans: Plan[] }) => ({
   description: g.description,
   targetAudience: g.targetAudience,
   themeColor: g.themeColor,
+  imageUrl: config.gameAssetUrl(g.imageUrl),
   coinMode: g.coinMode,
   pointsPerCoin: g.pointsPerCoin,
   plans: g.plans
@@ -42,6 +44,7 @@ export class GamesService {
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementsService,
     private readonly coinSettings: CoinSettingsService,
+    private readonly config: AppConfig,
   ) {}
 
   /** Current play-time rate set by admins, e.g. { coins: 2, minutes: 1 } */
@@ -64,7 +67,7 @@ export class GamesService {
     });
     return {
       categories: all.map((c) => c.category),
-      games: games.map(gameView),
+      games: games.map((g) => gameView(g, this.config)),
       timeCoins: await this.timeCoins(),
     };
   }
@@ -78,6 +81,10 @@ export class GamesService {
     const access = userId
       ? await this.entitlements.access(userId, game.id)
       : null;
-    return { ...gameView(game), access, timeCoins: await this.timeCoins() };
+    return {
+      ...gameView(game, this.config),
+      access,
+      timeCoins: await this.timeCoins(),
+    };
   }
 }

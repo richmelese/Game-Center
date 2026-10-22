@@ -60,7 +60,7 @@ function GameDetail() {
       <JourneyProgress step={access?.hasAccess ? 6 : plan ? 3 : 2} />
 
       <div className="card mt-4 overflow-hidden">
-        <GameArt slug={game.slug} color={game.themeColor} title={game.title} className="h-52" iconClassName="h-16 w-16" fit="contain" sizes="448px" priority />
+        <GameArt slug={game.slug} image={game.imageUrl} color={game.themeColor} title={game.title} className="h-52" iconClassName="h-16 w-16" fit="contain" sizes="448px" priority />
         <div className="p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">{game.category}</p>
           <h1 className="mt-1 text-xl font-bold text-slate-900">{game.title}</h1>

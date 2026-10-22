@@ -37,6 +37,22 @@ export class AppConfig {
   get frontendUrl() {
     return this.str('FRONTEND_URL', 'http://localhost:3000');
   }
+  /** Where the hosted HTML5 games live (e.g. http://localhost:8642); no trailing slash. */
+  get gamesBaseUrl() {
+    return this.str('GAMES_BASE_URL', 'http://localhost:8642').replace(
+      /\/+$/,
+      '',
+    );
+  }
+  /** Game links and pictures stored as paths ("/games/...") are served from GAMES_BASE_URL. */
+  gameAssetUrl(pathOrUrl: string): string;
+  gameAssetUrl(pathOrUrl: string | null): string | null;
+  gameAssetUrl(pathOrUrl: string | null) {
+    if (!pathOrUrl) return null;
+    return pathOrUrl.startsWith('/')
+      ? `${this.gamesBaseUrl}${pathOrUrl}`
+      : pathOrUrl;
+  }
   get publicApiUrl() {
     return this.str('PUBLIC_API_URL', 'http://localhost:4000');
   }

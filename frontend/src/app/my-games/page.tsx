@@ -14,7 +14,7 @@ import { useRequireAuth } from '@/lib/use-require-auth';
 interface Subscription {
   id: string;
   type: PlanType;
-  game: { slug: string; title: string; category: string; themeColor: string };
+  game: { slug: string; title: string; category: string; themeColor: string; imageUrl: string | null };
   startsAt: string;
   expiresAt: string | null;
   playsRemaining: number | null;
@@ -63,7 +63,7 @@ function MyGames() {
           <ul className="mt-3 space-y-3">
             {subs.map((s) => (
               <li key={s.id} className="card flex items-center gap-3 overflow-hidden pr-3">
-                <GameArt slug={s.game.slug} color={s.game.themeColor} title={s.game.title} className="h-20 w-20 shrink-0" iconClassName="h-8 w-8" sizes="80px" />
+                <GameArt slug={s.game.slug} image={s.game.imageUrl} color={s.game.themeColor} title={s.game.title} className="h-20 w-20 shrink-0" iconClassName="h-8 w-8" sizes="80px" />
                 <div className="min-w-0 flex-1 py-3">
                   <p className="truncate text-sm font-bold text-slate-900">{s.game.title}</p>
                   <p className="text-xs text-slate-500">

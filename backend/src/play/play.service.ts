@@ -85,9 +85,9 @@ export class PlayService {
     });
 
     // SCORE games receive the session id so the supplier's server can report results for it
-    let gameUrl = game.gameUrl;
+    let gameUrl = this.config.gameAssetUrl(game.gameUrl);
     if (game.coinMode === CoinMode.SCORE) {
-      const url = new URL(game.gameUrl);
+      const url = new URL(gameUrl);
       url.searchParams.set('tg_session', session.id);
       gameUrl = url.toString();
     }

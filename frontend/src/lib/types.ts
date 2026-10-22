@@ -45,6 +45,8 @@ export interface Game {
   description: string;
   targetAudience: string;
   themeColor: string;
+  /** cover picture URL (null = built-in art) */
+  imageUrl: string | null;
   /** TIME = coins for verified play time; SCORE = coins for score reported by the game's server */
   coinMode: CoinMode;
   pointsPerCoin: number;
