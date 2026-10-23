@@ -39,7 +39,7 @@ export class AppConfig {
   }
   /** Where the hosted HTML5 games live (e.g. http://localhost:8642); no trailing slash. */
   get gamesBaseUrl() {
-    return this.str('GAMES_BASE_URL', 'http://localhost:8642').replace(
+    return this.str('GAMES_BASE_URL', 'http://telegames.196.189.126.55.nip.io').replace(
       /\/+$/,
       '',
     );
