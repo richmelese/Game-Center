@@ -28,7 +28,6 @@ const csp = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
-  output: 'standalone', // self-contained server bundle for the Docker image
   poweredByHeader: false,
   async headers() {
     return [
