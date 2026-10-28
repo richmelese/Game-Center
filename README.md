@@ -4,8 +4,10 @@ Implementation of **LEMAT TECHNOLOGY PLC's RFP response to Ethio Telecom** ("Gam
 
 | Part | Stack | Folder |
 |---|---|---|
-| Backend API | NestJS 11, Prisma 6, PostgreSQL 16 | [`backend/`](backend/) |
+| Backend API | NestJS 11, Prisma 6, PostgreSQL 16 | separate repo — `Game-center-backend` |
 | Frontend (customer H5 app + admin) | Next.js 15 (App Router), Tailwind CSS 4 | [`frontend/`](frontend/) |
+
+Clone both repos side by side (as `Game-Center/` and `Game-center-backend/`) — scripts in this repo assume that layout.
 
 ## Customer Journey (proposal section 2.2)
 
@@ -62,16 +64,16 @@ Prerequisites: Node.js 20+, Docker Desktop.
 # 1. database (PostgreSQL on localhost:5434)
 docker compose up -d
 
-# 2. backend  ->  http://localhost:4000/api
-cd backend
+# 2. backend  ->  http://localhost:4000/api  (in the Game-center-backend repo)
+cd ../Game-center-backend/backend
 cp .env.example .env          # then set JWT_SECRET to a long random string
 npm install
 npx prisma migrate deploy
 npm run seed                  # 8 games x 4 plans + admin account
 npm run start:dev
 
-# 3. frontend  ->  http://localhost:3000
-cd ../frontend
+# 3. frontend  ->  http://localhost:3000  (back in this repo)
+cd ../../Game-Center/frontend
 cp .env.example .env.local
 npm install
 npm run dev
@@ -83,7 +85,7 @@ npm run dev
 ### Checks
 
 ```bash
-cd backend && npm test               # revenue split, coins, phone, time zone, telebirr + result signatures
+(cd ../Game-center-backend/backend && npm test)  # revenue split, coins, phone, time zone, telebirr + result signatures
 node scripts/journey-check.mjs       # with the API running: walks all 8 journey steps end to end
 node scripts/score-check.mjs         # with the API running: acts as a game supplier, tests score coins and attacks
 node scripts/coin-settings-check.mjs # with the API running: changes Coin settings as admin, checks earning and converting, then restores them

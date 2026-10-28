@@ -1,6 +1,6 @@
 # teleGame — security review and penetration-test brief
 
-Prepared before the internal penetration test. Covers the NestJS API (`backend/`), the Next.js website (`frontend/`) and the local PostgreSQL database.
+Prepared before the internal penetration test. Covers the NestJS API (`backend/`, in the separate `Game-center-backend` repo), the Next.js website (`frontend/`) and the local PostgreSQL database.
 
 Automated proof: `node scripts/security-audit.mjs` runs **115 attack checks** against the running system. It passes on the current code; the last line of its output must be `SECURITY AUDIT PASSED`.
 
