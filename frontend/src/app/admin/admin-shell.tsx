@@ -8,9 +8,7 @@ export interface NavItem<T extends string> {
   id: T;
   label: string;
   icon: LucideIcon;
-  /** small text on the right, e.g. "8/8" */
   meta?: string;
-  /** attention badge, shown only when > 0 */
   badge?: number;
 }
 
