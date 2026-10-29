@@ -1,6 +1,6 @@
 # teleGame — security review and penetration-test brief
 
-Prepared before the internal penetration test. Covers the NestJS API (`backend/`, in the separate `Game-center-backend` repo), the Next.js website (`frontend/`) and the local PostgreSQL database.
+Prepared before the internal penetration test. Covers the NestJS API (in the separate `Game-center-backend` repo), the Vite/React website (this repo) and the local PostgreSQL database.
 
 Automated proof: `node scripts/security-audit.mjs` runs **115 attack checks** against the running system. It passes on the current code; the last line of its output must be `SECURITY AUDIT PASSED`.
 
@@ -68,7 +68,7 @@ Every other route (34 of 41) requires a valid login token, and `/api/admin/*` al
 
 ## 4. Setting up the environment for the test
 
-Production mode needs real telebirr credentials and an SMS gateway, which are not available yet, so test a development build configured like this in `backend/.env`:
+Production mode needs real telebirr credentials and an SMS gateway, which are not available yet, so test a development build configured like this in the backend's `.env`:
 
 ```
 NODE_ENV=development

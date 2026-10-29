@@ -1,11 +1,9 @@
 # dependencies & builds
 node_modules/
-dist/
-.next/
-out/
+/dist
+/dist-ssr
 coverage/
 *.tsbuildinfo
-next-env.d.ts
 
 # secrets — commit only the .env.example files
 .env

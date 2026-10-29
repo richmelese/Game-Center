@@ -5,7 +5,7 @@ Implementation of **LEMAT TECHNOLOGY PLC's RFP response to Ethio Telecom** ("Gam
 | Part | Stack | Folder |
 |---|---|---|
 | Backend API | NestJS 11, Prisma 6, PostgreSQL 16 | separate repo — `Game-center-backend` |
-| Frontend (customer H5 app + admin) | Next.js 15 (App Router), Tailwind CSS 4 | [`frontend/`](frontend/) |
+| Frontend (customer H5 app + admin) | Vite, React 19, React Router, Tailwind CSS 4 | this repo (root) |
 
 Clone both repos side by side (as `Game-Center/` and `Game-center-backend/`) — scripts in this repo assume that layout.
 
@@ -36,7 +36,7 @@ Rates and limits are set in admin → **Coin settings**, and changes apply immed
 - coins for 1 ETB;
 - minimum conversion.
 
-The screen shows what a customer would earn before you save. The values in `backend/.env` are only used to create the first settings. Each game earns coins in one of two ways, chosen in admin → *Games & pricing*:
+The screen shows what a customer would earn before you save. The values in the backend's `.env` (in the `Game-center-backend` repo) are only used to create the first settings. Each game earns coins in one of two ways, chosen in admin → *Games & pricing*:
 
 | Mode | How coins are earned | Needs |
 |---|---|---|
@@ -65,7 +65,7 @@ Prerequisites: Node.js 20+, Docker Desktop.
 docker compose up -d
 
 # 2. backend  ->  http://localhost:4000/api  (in the Game-center-backend repo)
-cd ../Game-center-backend/backend
+cd ../Game-center-backend
 cp .env.example .env          # then set JWT_SECRET to a long random string
 npm install
 npx prisma migrate deploy
@@ -73,19 +73,19 @@ npm run seed                  # 8 games x 4 plans + admin account
 npm run start:dev
 
 # 3. frontend  ->  http://localhost:3000  (back in this repo)
-cd ../../Game-Center/frontend
+cd ../Game-Center
 cp .env.example .env.local
 npm install
 npm run dev
 ```
 
 - **Customer app:** <http://localhost:3000>. Log in with any Ethio telecom number (e.g. `0911223344`). In development, the OTP code is shown on screen.
-- **Admin:** <http://localhost:3000/admin>, using `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `backend/.env` (default `admin@lemattech.com` / `ChangeMe123!`).
+- **Admin:** <http://localhost:3000/admin>, using `ADMIN_EMAIL` / `ADMIN_PASSWORD` from the backend's `.env` (default `admin@lemattech.com` / `ChangeMe123!`).
 
 ### Checks
 
 ```bash
-(cd ../Game-center-backend/backend && npm test)  # revenue split, coins, phone, time zone, telebirr + result signatures
+(cd ../Game-center-backend && npm test)  # revenue split, coins, phone, time zone, telebirr + result signatures
 node scripts/journey-check.mjs       # with the API running: walks all 8 journey steps end to end
 node scripts/score-check.mjs         # with the API running: acts as a game supplier, tests score coins and attacks
 node scripts/coin-settings-check.mjs # with the API running: changes Coin settings as admin, checks earning and converting, then restores them
@@ -97,18 +97,18 @@ These scripts edit play time directly in the local Docker database to simulate l
 ## Look and feel
 
 - **Inside telebirr:** the customer app uses the telebirr SuperApp style (green header and bottom bar, yellow promo strip, blue action buttons), so it feels native when opened as a mini app. Ethio telecom / telebirr logos are not included; use the official assets provided during telebirr onboarding.
-- **Game artwork:** each game's own icon (`icon-256.png`, referenced in the game's `index.html`), stored in `frontend/public/games/<slug>.png`. Games without artwork fall back to a generated cover.
+- **Game artwork:** each game's own icon (`icon-256.png`, referenced in the game's `index.html`), stored in `public/games/<slug>.png`. Games without artwork fall back to a generated cover.
 
 ## Going live with telebirr
 
-Development uses a simulated telebirr (`PAYMENT_PROVIDER=mock`). The real integration is implemented in `backend/src/payments/providers/telebirr.provider.ts`:
+Development uses a simulated telebirr (`PAYMENT_PROVIDER=mock`). The real integration is implemented in `src/payments/providers/telebirr.provider.ts` (in the `Game-center-backend` repo):
 - **H5 C2B web checkout:** fabric token → `preOrder` signed with SHA256WithRSA (PSS) → checkout URL.
 - **Payment notification:** the `notify_url` callback is signature-verified, idempotent, and cross-checks the amount.
-- **SuperApp single sign-on:** `authToken` → customer identity. The frontend bridge is in `frontend/src/lib/telebirr-bridge.ts`.
+- **SuperApp single sign-on:** `authToken` → customer identity. The frontend bridge is in `src/lib/telebirr-bridge.ts`.
 
 Before production (proposal section 4.2: "final integration architecture … shall be agreed with Ethio Telecom/telebirr"):
 
-1. Obtain merchant credentials from telebirr: fabric app id, app secret, merchant app id, short code, RSA key pair and telebirr public key. Set them in `backend/.env` and switch to `PAYMENT_PROVIDER=telebirr`.
+1. Obtain merchant credentials from telebirr: fabric app id, app secret, merchant app id, short code, RSA key pair and telebirr public key. Set them in the backend's `.env` and switch to `PAYMENT_PROVIDER=telebirr`.
 2. Validate the endpoints, field names, signature format and SuperApp JS bridge against telebirr's current integration guide in their test environment.
 3. Expose `PUBLIC_API_URL` over HTTPS so telebirr can reach `/api/payments/telebirr/notify`.
 4. Set `OTP_DEV_ECHO=false` and connect an SMS gateway in `AuthService.requestOtp`, or rely on SuperApp single sign-on only.

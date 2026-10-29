@@ -2,11 +2,11 @@
 // and fails loudly on any weakness. Development / test environments only — it creates test
 // customers, a few orders and a support ticket, and edits rows in the local Docker database.
 //
-//   node scripts/security-audit.mjs      (API on :4000, website on :3000, backend/.env present)
+//   node scripts/security-audit.mjs      (API on :4000, website on :3000, backend .env present)
 //
-// backend/.env lives in the separate Game-center-backend repo. Set BACKEND_ENV_PATH to its
-// location, or clone that repo as a sibling of this one (../Game-center-backend) and it's found
-// automatically.
+// The backend's .env lives in the separate Game-center-backend repo. Set BACKEND_ENV_PATH to
+// its location, or clone that repo as a sibling of this one (../Game-center-backend) and it's
+// found automatically.
 import { execSync } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -18,7 +18,7 @@ const WEB = 'http://localhost:3000';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const backendEnvPath = [
   process.env.BACKEND_ENV_PATH,
-  path.join(here, '../../Game-center-backend/backend/.env'),
+  path.join(here, '../../Game-center-backend/.env'),
 ].filter(Boolean).find(existsSync);
 if (!backendEnvPath) {
   console.error('Could not find backend/.env — set BACKEND_ENV_PATH to its location.');
