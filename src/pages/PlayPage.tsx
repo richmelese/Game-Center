@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ErrorNote, Spinner } from '@/components/AppShell';
 import { JourneyProgress } from '@/components/JourneySteps';
-import { api, API_URL, ApiError } from '@/lib/api';
+import { api, API_URL, ApiError, authInit } from '@/lib/api';
 import { mmss } from '@/lib/format';
 import type { CoinMode, PlayMode } from '@/lib/types';
 import { useRequireAuth } from '@/lib/use-require-auth';
@@ -120,8 +120,7 @@ export default function PlayPage() {
       fetch(`${API_URL}/play/${s.sessionId}/end`, {
         method: 'POST',
         keepalive: true,
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        ...authInit(true),
         body: '{}',
       }).catch(() => undefined);
     };

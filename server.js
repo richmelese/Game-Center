@@ -10,8 +10,8 @@ const DIST = join(fileURLToPath(new URL('.', import.meta.url)), 'dist');
 const PORT = Number(process.env.PORT) || 3000;
 const isDev = process.env.NODE_ENV !== 'production';
 
-const apiOrigin = new URL(process.env.VITE_API_URL ?? 'http://localhost:4000/api').origin;
-const gamesOrigin = new URL(process.env.VITE_GAMES_BASE_URL ?? 'http://localhost:8642').origin;
+const apiOrigin = new URL(process.env.VITE_API_URL || 'https://game.goffice.et/api').origin;
+const gamesOrigin = new URL(process.env.VITE_GAMES_BASE_URL || 'https://games.goffice.et').origin;
 
 /**
  * Content-Security-Policy: scripts and styles only from this site, API calls only to the

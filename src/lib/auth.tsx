@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { api } from './api';
+import { api, ApiError, setAuthToken } from './api';
 import type { User } from './types';
 
 interface AuthState {
   user: User | null;
   ready: boolean;
-  signIn: (user: User) => void;
+  /** accessToken: returned by customer logins; kept only inside the SuperApp mini-app. */
+  signIn: (user: User, accessToken?: string) => void;
   signOut: () => void;
   refresh: () => Promise<void>;
 }
@@ -21,7 +22,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       setUser(await api<User>('/auth/me'));
-    } catch {
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) setAuthToken(null); // expired mini-app token
       setUser(null);
     }
   }, []);
@@ -30,12 +32,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refresh().finally(() => setReady(true));
   }, [refresh]);
 
-  const signIn = useCallback((u: User) => {
+  const signIn = useCallback((u: User, accessToken?: string) => {
+    if (accessToken) setAuthToken(accessToken);
     setUser(u);
   }, []);
 
   const signOut = useCallback(() => {
     api('/auth/logout', { method: 'POST' }).catch(() => undefined);
+    setAuthToken(null);
     setUser(null);
   }, []);
 

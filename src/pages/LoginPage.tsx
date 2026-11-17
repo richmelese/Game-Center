@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { isInSuperApp, requestTelebirrAuthToken } from '@/lib/telebirr-bridge';
 import type { User } from '@/lib/types';
 
-type Session = { user: User };
+type Session = { user: User; accessToken?: string };
 
 function safeNext(next: string | null) {
   return next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
@@ -39,7 +39,7 @@ export default function LoginPage() {
       .then(async (authToken) => {
         if (!authToken) return;
         const s = await api<Session>('/auth/telebirr', { body: { authToken } });
-        signIn(s.user);
+        signIn(s.user, s.accessToken);
         navigate(next, { replace: true });
       })
       .catch((e) => setError(e.message))
@@ -67,7 +67,7 @@ export default function LoginPage() {
     setError('');
     try {
       const s = await api<Session>('/auth/otp/verify', { body: { phone, code } });
-      signIn(s.user);
+      signIn(s.user, s.accessToken);
       navigate(next, { replace: true });
     } catch (err) {
       setError((err as Error).message);

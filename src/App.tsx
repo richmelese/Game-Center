@@ -1,4 +1,5 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Route, Routes } from 'react-router-dom';
+import { IS_WEB } from '@/lib/config';
 import { AuthProvider } from '@/lib/auth';
 import AdminLoginPage from '@/pages/admin/AdminLoginPage';
 import AdminPage from '@/pages/admin/AdminPage';
@@ -11,10 +12,13 @@ import PlayPage from '@/pages/PlayPage';
 import SupportPage from '@/pages/SupportPage';
 import WalletPage from '@/pages/WalletPage';
 
+// The SuperApp loads index.html from a local package, where path-based routing can't work.
+const Router = IS_WEB ? BrowserRouter : HashRouter;
+
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <Router>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -28,7 +32,7 @@ export default function App() {
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="*" element={<HomePage />} />
         </Routes>
-      </BrowserRouter>
+      </Router>
     </AuthProvider>
   );
 }

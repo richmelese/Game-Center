@@ -1,3 +1,5 @@
+import { TELEBIRR_MINIAPP_ID } from './config';
+
 /**
  * telebirr SuperApp mini-app bridge.
  * Inside the SuperApp the H5 page asks the host app for an auth token, which the backend
@@ -15,7 +17,7 @@ declare global {
 export const isInSuperApp = () => typeof window !== 'undefined' && !!window.consumerapp;
 
 export function requestTelebirrAuthToken(timeoutMs = 8000): Promise<string | null> {
-  const appId = import.meta.env.VITE_TELEBIRR_MINIAPP_ID;
+  const appId = TELEBIRR_MINIAPP_ID;
   if (!isInSuperApp() || !appId) return Promise.resolve(null);
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(null), timeoutMs);

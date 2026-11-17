@@ -1,0 +1,15 @@
+{
+  "pages": ["index.html"],
+  "entryPagePath": "index.html",
+  "page": {},
+  "global": {
+    "window": {
+      "navigationBarBackgroundColor": "#8dc63f",
+      "navigationBarTitleText": "Game Center",
+      "backgroundTextStyle": "light",
+      "navigationBarTextStyle": "white",
+      "capsuleTheme": "light"
+    }
+  },
+  "type": "legacy"
+}

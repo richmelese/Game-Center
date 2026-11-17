@@ -1,3 +1,4 @@
+import { assetUrl } from '@/lib/config';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ErrorNote } from '@/components/AppShell';
@@ -26,7 +27,7 @@ export default function AdminLoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center px-4">
       <form onSubmit={submit} className="card w-full max-w-sm space-y-4 p-6">
-        <img src="/lemat-mark.png" alt="LEMAT" width={140} height={93} className="h-12 w-auto" />
+        <img src={assetUrl("lemat-mark.png")} alt="LEMAT" width={140} height={93} className="h-12 w-auto" />
         <div>
           <h1 className="text-xl font-bold text-slate-900">Game Center admin</h1>
           <p className="text-sm text-slate-500">LEMAT TECHNOLOGY PLC operations</p>

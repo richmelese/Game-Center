@@ -1,3 +1,4 @@
+import { assetUrl } from '@/lib/config';
 import {
   Brush,
   CakeSlice,
@@ -56,7 +57,7 @@ export function GameArt({
   image?: string | null;
 }) {
   const [missing, setMissing] = useState(false);
-  const src = image ?? `/games/${slug}.png`;
+  const src = image ?? assetUrl(`games/${slug}.png`);
   const remote = Boolean(image);
 
   if (missing) {
